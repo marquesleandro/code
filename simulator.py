@@ -1,3 +1,7 @@
+# FEM Simulator 
+# Created by Leandro Marques
+# 14.11.18 
+
 # =======================
 # Importing the libraries
 # =======================
