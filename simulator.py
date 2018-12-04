@@ -14,7 +14,8 @@ import scipy.sparse as sps
 import scipy.sparse.linalg
 import scipy.linalg
 import trimsh
-import trielem
+import trigauss
+from trielem import assembly_linear
 from tricond import b_bc
 import InOut
 from tqdm import tqdm
@@ -74,42 +75,7 @@ print '--------'
 
 start_time = time()
 
-Kxx = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-Kxy = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-Kyx = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-Kyy = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-K = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-M = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-MLump = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-Gx = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-Gy = sps.lil_matrix((mesh.npoints,mesh.npoints), dtype = float)
-
-
-linear = trielem.Linear(mesh.x, mesh.y, mesh.IEN)
-
-for e in tqdm(range(0, mesh.nelem)):
-# linear.analytic(e)
- linear.numerical(e)
-
- for i in range(0,3): 
-  ii = mesh.IEN[e][i]
-  
-  for j in range(0,3):
-   jj = mesh.IEN[e][j]
-
-   Kxx[ii,jj] += linear.kxx[i][j]
-   Kxy[ii,jj] += linear.kxy[i][j]
-   Kyx[ii,jj] += linear.kyx[i][j]
-   Kyy[ii,jj] += linear.kyy[i][j]
-   K[ii,jj] += linear.kxx[i][j] + linear.kyy[i][j]
-   M[ii,jj] += linear.mass[i][j]
-   MLump[ii,ii] += linear.mass[i][j]
-
-  for k in range(0,3):
-   kk = mesh.IEN[e][k]
-
-   Gx[ii,kk] += linear.gx[i][k]
-   Gy[ii,kk] += linear.gy[i][k]
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly_linear(mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
 
 
 #Minv = np.linalg.inv(M.todense())
@@ -147,13 +113,11 @@ bc[5][0] = 0.0
 bc[6][0] = 0.0
 bc[7][0] = 0.0
 
-'''
 # Streamline condition
-bc[8][0] = 0.0
-bc[9][0] = 0.0
-bc[10][0] = 0.0
-bc[11][0] = 1.0
-'''
+#bc[8][0] = 0.0
+#bc[9][0] = 0.0
+#bc[10][0] = 0.0
+#bc[11][0] = 1.0
 
 
 # Concentration condition
@@ -171,10 +135,8 @@ ibc_w = ibc_vx
 # Applying vy condition
 bc_neumann_vy,bc_dirichlet_vy,LHS_vy,bc_1_vy,bc_2_vy,ibc_vy = b_bc(mesh.npoints, mesh.x, mesh.y, bc, mesh.neumann_edges[2], mesh.dirichlet_pts[2], LHS_vy0, mesh.neighbors_nodes)
 
-'''
 # Applying psi condition
-bc_neumann_psi,bc_dirichlet_psi,LHS_psi,bc_1_psi,bc_2_psi,ibc_psi = b_bc(mesh.npoints, mesh.x, mesh.y, bc, mesh.neumann_edges[3], mesh.dirichlet_pts[3], LHS_psi0, mesh.neighbors_nodes)
-'''
+#bc_neumann_psi,bc_dirichlet_psi,LHS_psi,bc_1_psi,bc_2_psi,ibc_psi = b_bc(mesh.npoints, mesh.x, mesh.y, bc, mesh.neumann_edges[3], mesh.dirichlet_pts[3], LHS_psi0, mesh.neighbors_nodes)
 
 # Applying concentration condition
 bc_neumann_c,bc_dirichlet_c,LHS_c,bc_1_c,bc_2_c,ibc_c = b_bc(mesh.npoints, mesh.x, mesh.y, bc, mesh.neumann_edges[4], mesh.dirichlet_pts[4], LHS_c0, mesh.neighbors_nodes)
@@ -356,3 +318,4 @@ for t in tqdm(range(0, nt)):
  c = scipy.sparse.linalg.cg(LHS_c,RHS_c,c, maxiter=1.0e+05, tol=1.0e-05)
  c = c[0].reshape((len(c[0]),1))
  #----------------------------------------------------------------------------------
+
