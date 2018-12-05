@@ -1,25 +1,29 @@
-# FEM Simulator 
+# FEM Simulator - Streamfunction-Vorticity Formulation
 # Created by Leandro Marques
 # 14.11.18 
+
 
 # =======================
 # Importing the libraries
 # =======================
 
 import sys
-sys.path.insert(0, '../lib_class')
+sys.path.insert(0, 'home/marquesleandro/lib_class')
+
+from tqdm import tqdm
+from time import time
 
 import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg
 import scipy.linalg
+
 import trimsh
 import trigauss
 from trielem import assembly_linear
 from tricond import b_bc
 import InOut
-from tqdm import tqdm
-from time import time
+
 
 
 print '------------'
@@ -30,7 +34,7 @@ start_time = time()
 
 name_mesh = 'RealGeoStrut_ext.msh'
 number_equation = 4
-mesh = trimsh.Linear('../mesh/coronaria',name_mesh,number_equation)
+mesh = trimsh.Linear('home/marquesleandro/mesh/coronaria',name_mesh,number_equation)
 mesh.ien()
 mesh.coord()
 
@@ -69,6 +73,7 @@ print ""
 # -----------------------------------------------
 
 
+
 print '--------'
 print 'ASSEMBLY:'
 print '--------'
@@ -78,18 +83,16 @@ start_time = time()
 Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly_linear(mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
 
 
-#Minv = np.linalg.inv(M.todense())
-#MinvLump = np.linalg.inv(MLump.todense())
-
 LHS_vx0 = sps.lil_matrix.copy(M)
 LHS_vy0 = sps.lil_matrix.copy(M)
 LHS_psi0 = sps.lil_matrix.copy(K)
-LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (theta/Re)*sps.lil_matrix.copy(K))
+LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (theta/(Re*Sc))*sps.lil_matrix.copy(K))
 
 
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
+
 
 
 print '--------------------------------'
@@ -192,10 +195,10 @@ for i in range(0,len(ibc_psi)):
  bc_2_psi[mm] = 0.0
 
 # ---------Initial condition--------------------
-vx = bc_dirichlet_vx
-vy = bc_dirichlet_vy
-psi = bc_dirichlet_psi
-c = bc_dirichlet_c
+vx = bc_1_vx
+vy = bc_1_vy
+psi = bc_1_psi
+c = bc_1_c
 w = np.zeros([mesh.npoints,1], dtype = float)
 
 
@@ -207,10 +210,9 @@ w = w[0].reshape((len(w[0]),1))
 
 
 # -----Streamline initial-----
-# psi condition
 RHS_psi = sps.lil_matrix.dot(M,w)
 RHS_psi = np.multiply(RHS_psi,bc_2_psi)
-RHS_psi += bc_1_psi
+RHS_psi += bc_dirichlet_psi
 psi = scipy.sparse.linalg.cg(LHS_psi,RHS_psi,psi, maxiter=1.0e+05, tol=1.0e-05)
 psi = psi[0].reshape((len(psi[0]),1))
 #----------------------------------------------------------------------------------
@@ -229,8 +231,8 @@ print ""
 
 bc_dirichlet_w = np.zeros([mesh.npoints,1], dtype = float) 
 for t in tqdm(range(0, nt)):
- save = InOut.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,w,psi,vx,vy)
- save.saveVTK('/home/marquesgesar/results/result_coronary_RealGeoStrut_ext1','coronary%s' %t)
+# save = InOut.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,w,psi,vx,vy)
+# save.saveVTK('/home/marquesleandro/results/result_coronary_RealGeoStrut_ext1','coronary%s' %t)
 
  #---------- Step 2 - Compute the boundary conditions for vorticity --------------
  AA = sps.lil_matrix.dot(Gx,vy) - sps.lil_matrix.dot(Gy,vx)
@@ -255,54 +257,42 @@ for t in tqdm(range(0, nt)):
  #----------------------------------------------------------------------------------
 
  #---------- Step 3 - Solve the vorticity transport equation ----------------------
- # Solve Vorticity
  A = np.copy(M)/dt
  RHS_w = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
-       - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
-       - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w)) + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
-       - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w)) + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
+                                 - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
+       - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
+                                + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
+       - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
+                                + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
+
+ RHS_w = RHS_w + (1.0/Re)*bc_neumann_w
  RHS_w = np.multiply(RHS_w,bc_2_w)
- RHS_w += bc_1_w
+ RHS_w = RHS_w + bc_dirichlet_w
+ 
  w = scipy.sparse.linalg.cg(LHS_w,RHS_w,w, maxiter=1.0e+05, tol=1.0e-05)
  w = w[0].reshape((len(w[0]),1))
  #----------------------------------------------------------------------------------
 
  #---------- Step 4 - Solve the streamline equation --------------------------------
- # Solve Streamline
- # psi condition
  RHS_psi = sps.lil_matrix.dot(M,w)
  RHS_psi = np.multiply(RHS_psi,bc_2_psi)
- RHS_psi += bc_1_psi
+ RHS_psi = RHS_psi + bc_dirichlet_psi
  psi = scipy.sparse.linalg.cg(LHS_psi,RHS_psi,psi, maxiter=1.0e+05, tol=1.0e-05)
  psi = psi[0].reshape((len(psi[0]),1))
  #----------------------------------------------------------------------------------
 
  #---------- Step 5 - Compute the velocity field -----------------------------------
- #METHOD 1 --> Applying bcs after solve
- # Velocity vx
-# AA = sps.lil_matrix.dot(Gy,psi)
-# vx = np.dot(Minv,AA)
-# vx = np.multiply(vx,bc_2_vx)
-# vx += bc_dirichlet_vx
-
- # Velocity vy
-# AA = -sps.lil_matrix.dot(Gx,psi)
-# vy = np.dot(Minv,AA)
-# vy = np.multiply(vy,bc_2_vy)
-# vy += bc_dirichlet_vy
-
- #METHOD 2 --> Applying bcs before solve
  # Velocity vx
  AA = sps.lil_matrix.dot(Gy,psi)
  RHS_vx = np.multiply(AA,bc_2_vx)
- RHS_vx += bc_1_vx
+ RHS_vx = RHS_vx + bc_dirichlet_vx
  vx = scipy.sparse.linalg.cg(LHS_vx,RHS_vx,vx, maxiter=1.0e+05, tol=1.0e-05)
  vx = vx[0].reshape((len(vx[0]),1))
  
  # Velocity vy
  AA = -sps.lil_matrix.dot(Gx,psi)
  RHS_vy = np.multiply(AA,bc_2_vy)
- RHS_vy += bc_1_vy
+ RHS_vy = RHS_vy + bc_dirichlet_vy
  vy = scipy.sparse.linalg.cg(LHS_vy,RHS_vy,vy, maxiter=1.0e+05, tol=1.0e-05)
  vy = vy[0].reshape((len(vy[0]),1))
  #----------------------------------------------------------------------------------
@@ -310,11 +300,16 @@ for t in tqdm(range(0, nt)):
  #---------- Step 6 - Concentration -----------------------------------
  A = np.copy(M)/dt
  RHS_c = sps.lil_matrix.dot(A,c) - np.multiply(vx,sps.lil_matrix.dot(Gx,c))\
-       - np.multiply(vy,sps.lil_matrix.dot(Gy,c)) + (1.0/(Re*Sc))*bc_neumann_c\
-       - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,c)) + np.multiply(vy,sps.lil_matrix.dot(Kyx,c))))\
-       - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,c)) + np.multiply(vy,sps.lil_matrix.dot(Kyy,c))))
+                                 - np.multiply(vy,sps.lil_matrix.dot(Gy,c))\
+       - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,c))\
+                                + np.multiply(vy,sps.lil_matrix.dot(Kyx,c))))\
+       - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,c))\
+                                + np.multiply(vy,sps.lil_matrix.dot(Kyy,c))))
+ 
+ RHS_c = RHS_c + (1.0/(Re*Sc))*bc_neumann_c
  RHS_c = np.multiply(RHS_c,bc_2_c)
- RHS_c += bc_1_c
+ RHS_c = RHS_c + bc_dirichlet_c
+ 
  c = scipy.sparse.linalg.cg(LHS_c,RHS_c,c, maxiter=1.0e+05, tol=1.0e-05)
  c = c[0].reshape((len(c[0]),1))
  #----------------------------------------------------------------------------------
