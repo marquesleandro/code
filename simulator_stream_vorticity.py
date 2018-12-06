@@ -8,7 +8,7 @@
 # =======================
 
 import sys
-sys.path.insert(0, 'home/marquesleandro/lib_class')
+sys.path.insert(0, '../lib_class')
 
 from tqdm import tqdm
 from time import time
@@ -16,10 +16,8 @@ from time import time
 import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg
-import scipy.linalg
 
 import trimsh
-import trigauss
 from trielem import assembly_linear
 from tricond import b_bc
 import InOut
@@ -34,7 +32,7 @@ start_time = time()
 
 name_mesh = 'RealGeoStrut_ext.msh'
 number_equation = 4
-mesh = trimsh.Linear('home/marquesleandro/mesh/coronaria',name_mesh,number_equation)
+mesh = trimsh.Linear('../mesh/coronaria',name_mesh,number_equation)
 mesh.ien()
 mesh.coord()
 
@@ -147,7 +145,7 @@ bc_neumann_c,bc_dirichlet_c,LHS_c,bc_1_c,bc_2_c,ibc_c = b_bc(mesh.npoints, mesh.
 
 
 # Applying psi condition (dirichlet condition only)
-bc_dirichlet_psi = np.zeros([mesh.npoints,1], dtype = float) 
+bc_1_psi = np.zeros([mesh.npoints,1], dtype = float) 
 bc_neumann_psi = np.zeros([mesh.npoints,1], dtype = float) 
 ibc_psi = []
 
@@ -157,22 +155,22 @@ for i in range(0, len(mesh.dirichlet_pts[3])):
  v2 = mesh.dirichlet_pts[3][i][2] - 1
 
  if line == 8:
-  bc_dirichlet_psi[v1] = 0.0
-  bc_dirichlet_psi[v2] = 0.0
+  bc_1_psi[v1] = 0.0
+  bc_1_psi[v2] = 0.0
 
   ibc_psi.append(v1)
   ibc_psi.append(v2)
 
  elif line == 11:
-  bc_dirichlet_psi[v1] = 1.0
-  bc_dirichlet_psi[v2] = 1.0
+  bc_1_psi[v1] = 1.0
+  bc_1_psi[v2] = 1.0
 
   ibc_psi.append(v1)
   ibc_psi.append(v2)
 
  else:
-  bc_dirichlet_psi[v1] = mesh.y[v1]
-  bc_dirichlet_psi[v2] = mesh.y[v2]
+  bc_1_psi[v1] = mesh.y[v1]
+  bc_1_psi[v2] = mesh.y[v2]
 
   ibc_psi.append(v1)
   ibc_psi.append(v2)
@@ -180,18 +178,17 @@ for i in range(0, len(mesh.dirichlet_pts[3])):
 ibc_psi = np.unique(ibc_psi)
 
 # Gaussian elimination for psi
-bc_1_psi = np.zeros([mesh.npoints,1], dtype = float)
+bc_dirichlet_psi = np.zeros([mesh.npoints,1], dtype = float)
 bc_2_psi = np.ones([mesh.npoints,1], dtype = float)
 LHS_psi = sps.lil_matrix.copy(LHS_psi0)
-for i in range(0,len(ibc_psi)):
- mm = ibc_psi[i]
+for mm in ibc_psi:
  for nn in mesh.neighbors_nodes[mm]:
-  bc_1_psi[nn] -= float(LHS_psi[nn,mm]*bc_dirichlet_psi[mm])
+  bc_dirichlet_psi[nn] -= float(LHS_psi[nn,mm]*bc_1_psi[mm])
   LHS_psi[nn,mm] = 0.0
   LHS_psi[mm,nn] = 0.0
    
  LHS_psi[mm,mm] = 1.0
- bc_1_psi[mm] = bc_dirichlet_psi[mm]
+ bc_dirichlet_psi[mm] = bc_1_psi[mm]
  bc_2_psi[mm] = 0.0
 
 # ---------Initial condition--------------------
@@ -229,30 +226,32 @@ print '----------------------------'
 print ""
 
 
-bc_dirichlet_w = np.zeros([mesh.npoints,1], dtype = float) 
+bc_1_w = np.zeros([mesh.npoints,1], dtype = float) 
 for t in tqdm(range(0, nt)):
 # save = InOut.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,w,psi,vx,vy)
 # save.saveVTK('/home/marquesleandro/results/result_coronary_RealGeoStrut_ext1','coronary%s' %t)
 
  #---------- Step 2 - Compute the boundary conditions for vorticity --------------
  AA = sps.lil_matrix.dot(Gx,vy) - sps.lil_matrix.dot(Gy,vx)
- bc_dirichlet_w = scipy.sparse.linalg.cg(M,AA,bc_dirichlet_w, maxiter=1.0e+05, tol=1.0e-05)
- bc_dirichlet_w = bc_dirichlet_w[0].reshape((len(bc_dirichlet_w[0]),1))
+ bc_1_w = scipy.sparse.linalg.cg(M,AA,bc_1_w, maxiter=1.0e+05, tol=1.0e-05)
+ bc_1_w = bc_1_w[0].reshape((len(bc_1_w[0]),1))
 
 
  # Gaussian elimination
- bc_1_w = np.zeros([mesh.npoints,1], dtype = float)
+ bc_dirichlet_w = np.zeros([mesh.npoints,1], dtype = float)
+ bc_neumann_w = np.zeros([mesh.npoints,1], dtype = float)
  bc_2_w = np.ones([mesh.npoints,1], dtype = float)
+ 
  LHS_w = ((np.copy(M)/dt) + (theta/Re)*np.copy(K))
  for i in range(0,len(ibc_w)):
   mm = ibc_w[i]
   for nn in mesh.neighbors_nodes[mm]:
-   bc_1_w[nn] -= float(LHS_w[nn,mm]*bc_dirichlet_w[mm])
+   bc_dirichlet_w[nn] -= float(LHS_w[nn,mm]*bc_1_w[mm])
    LHS_w[nn,mm] = 0.0
    LHS_w[mm,nn] = 0.0
    
   LHS_w[mm,mm] = 1.0
-  bc_1_w[mm] = bc_dirichlet_w[mm]
+  bc_dirichlet_w[mm] = bc_1_w[mm]
   bc_2_w[mm] = 0.0
  #----------------------------------------------------------------------------------
 
