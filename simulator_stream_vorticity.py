@@ -29,9 +29,9 @@ print '------------'
 
 start_time = time()
 
-name_mesh = 'RealGeoStrut_ext.msh'
-number_equation = 4
-mesh = import_msh.Linear('../mesh/coronaria',name_mesh,number_equation)
+name_mesh = 'malha_poiseuille.msh'
+number_equation = 3
+mesh = import_msh.Linear('../mesh',name_mesh,number_equation)
 mesh.ien()
 mesh.coord()
 
@@ -83,7 +83,7 @@ Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear(mesh.npoints, mesh.nel
 LHS_vx0 = sps.lil_matrix.copy(M)
 LHS_vy0 = sps.lil_matrix.copy(M)
 LHS_psi0 = sps.lil_matrix.copy(K)
-LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (theta/(Re*Sc))*sps.lil_matrix.copy(K))
+#LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (theta/(Re*Sc))*sps.lil_matrix.copy(K))
 
 
 end_time = time()
@@ -114,81 +114,36 @@ bc[6][0] = 0.0
 bc[7][0] = 0.0
 
 # Concentration condition
-bc[12][0] = 0.0
-bc[13][0] = 0.0
-bc[14][0] = 0.0
-bc[15][0] = 0.0
-bc[16][0] = 1.0
-
+#bc[12][0] = 0.0
+#bc[13][0] = 0.0
+#bc[14][0] = 0.0
+#bc[15][0] = 0.0
+#bc[16][0] = 1.0
 
 # Applying vx condition
-condition_xvelocity = bc_apply.Linear(mesh.npoints,mesh.x,mesh.y,bc)
+condition_xvelocity = bc_apply.Poiseuille(mesh.npoints,mesh.x,mesh.y,bc)
 condition_xvelocity.neumann_condition(mesh.neumann_edges[1])
 condition_xvelocity.dirichlet_condition(mesh.dirichlet_pts[1])
 condition_xvelocity.gaussian_elimination(LHS_vx0,mesh.neighbors_nodes)
 ibc_w = condition_xvelocity.ibc
 
 # Applying vy condition
-condition_yvelocity = bc_apply.Linear(mesh.npoints,mesh.x,mesh.y,bc)
+condition_yvelocity = bc_apply.Poiseuille(mesh.npoints,mesh.x,mesh.y,bc)
 condition_yvelocity.neumann_condition(mesh.neumann_edges[2])
 condition_yvelocity.dirichlet_condition(mesh.dirichlet_pts[2])
 condition_yvelocity.gaussian_elimination(LHS_vy0,mesh.neighbors_nodes)
 
+# Applying psi condition
+condition_psi = bc_apply.Poiseuille(mesh.npoints,mesh.x,mesh.y,bc)
+condition_psi.streamfunction_condition(mesh.dirichlet_pts[3],LHS_psi0,mesh.neighbors_nodes)
+
 # Applying concentration condition
-condition_concentration = bc_apply.Linear(mesh.npoints,mesh.x,mesh.y,bc)
-condition_concentration.neumann_condition(mesh.neumann_edges[4])
-condition_concentration.dirichlet_condition(mesh.dirichlet_pts[4])
-condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
+#condition_concentration = bc_apply.Linear(mesh.npoints,mesh.x,mesh.y,bc)
+#condition_concentration.neumann_condition(mesh.neumann_edges[4])
+#condition_concentration.dirichlet_condition(mesh.dirichlet_pts[4])
+#condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
 
-# Applying psi condition (dirichlet condition only)
-bc_1_psi = np.zeros([mesh.npoints,1], dtype = float) 
-bc_neumann_psi = np.zeros([mesh.npoints,1], dtype = float) 
-ibc_psi = []
-
-for i in range(0, len(mesh.dirichlet_pts[3])):
- line = mesh.dirichlet_pts[3][i][0] - 1
- v1 = mesh.dirichlet_pts[3][i][1] - 1
- v2 = mesh.dirichlet_pts[3][i][2] - 1
-
- if line == 8:
-  bc_1_psi[v1] = 0.0
-  bc_1_psi[v2] = 0.0
-
-  ibc_psi.append(v1)
-  ibc_psi.append(v2)
-
- elif line == 11:
-  bc_1_psi[v1] = 1.0
-  bc_1_psi[v2] = 1.0
-
-  ibc_psi.append(v1)
-  ibc_psi.append(v2)
-
- else:
-  bc_1_psi[v1] = mesh.y[v1]
-  bc_1_psi[v2] = mesh.y[v2]
-
-  ibc_psi.append(v1)
-  ibc_psi.append(v2)
-
-ibc_psi = np.unique(ibc_psi)
-
-# Gaussian elimination for psi
-bc_dirichlet_psi = np.zeros([mesh.npoints,1], dtype = float)
-bc_2_psi = np.ones([mesh.npoints,1], dtype = float)
-LHS_psi = sps.lil_matrix.copy(LHS_psi0)
-for mm in ibc_psi:
- for nn in mesh.neighbors_nodes[mm]:
-  bc_dirichlet_psi[nn] -= float(LHS_psi[nn,mm]*bc_1_psi[mm])
-  LHS_psi[nn,mm] = 0.0
-  LHS_psi[mm,nn] = 0.0
-   
- LHS_psi[mm,mm] = 1.0
- bc_dirichlet_psi[mm] = bc_1_psi[mm]
- bc_2_psi[mm] = 0.0
-# ---------------------------------------------------------------------------------
-
-
+'''
 # -------------------------- Initial condition ------------------------------------
 vx = condition_xvelocity.bc_1
 vy = condition_yvelocity.bc_1
@@ -323,3 +278,4 @@ for t in tqdm(range(0, nt)):
  c = scipy.sparse.linalg.cg(condition_concentration.LHS,RHS_c,c, maxiter=1.0e+05, tol=1.0e-05)
  c = c[0].reshape((len(c[0]),1))
  # --------------------------------------------------------------------------------
+'''
