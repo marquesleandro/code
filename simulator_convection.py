@@ -26,6 +26,7 @@ import scipy.sparse.linalg
 import import_msh
 import assembly
 import bc_apply
+import semi_lagrangian
 import export_vtk
 
 
@@ -133,20 +134,37 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
- save.saveVTK('/home/marquesleandro/results/convection_taylor','coronary%s' %t)
+ save.saveVTK('/home/marquesleandro/results/convection_lagrangian','coronary%s' %t)
  # --------------------------------------------------------------------------------
 
- # -------------------------- Solver ----------------------------------------------
+ # ------------------------ Solver - Taylor Galerkin ------------------------------
+# A = np.copy(M)/dt
+# concentration_RHS = sps.lil_matrix.dot(A,c) - np.multiply(vx,sps.lil_matrix.dot(Gx,c))\
+#                                             - np.multiply(vy,sps.lil_matrix.dot(Gy,c))\
+#                   - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,c))\
+#                                            + np.multiply(vy,sps.lil_matrix.dot(Kyx,c))))\
+#                   - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,c))\
+#                                            + np.multiply(vy,sps.lil_matrix.dot(Kyy,c))))
+# 
+# concentration_RHS = np.multiply(concentration_RHS,condition_concentration.bc_2)
+# concentration_RHS = concentration_RHS + condition_concentration.bc_dirichlet
+# 
+# c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
+# c = c[0].reshape((len(c[0]),1))
+ # --------------------------------------------------------------------------------
+
+ # ------------------------ Solver - Semi Lagrangian ------------------------------
+ x_d = mesh.x - vx*dt
+ y_d = mesh.y - vy*dt
+
+ c_d = semi_lagrangian.semi_lagrangian(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, c)
+
  A = np.copy(M)/dt
- concentration_RHS = sps.lil_matrix.dot(A,c) - np.multiply(vx,sps.lil_matrix.dot(Gx,c))\
-                                             - np.multiply(vy,sps.lil_matrix.dot(Gy,c))\
-                   - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,c))\
-                                            + np.multiply(vy,sps.lil_matrix.dot(Kyx,c))))\
-                   - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,c))\
-                                            + np.multiply(vy,sps.lil_matrix.dot(Kyy,c))))
+ concentration_RHS = sps.lil_matrix.dot(A,c_d)
  
  concentration_RHS = np.multiply(concentration_RHS,condition_concentration.bc_2)
  concentration_RHS = concentration_RHS + condition_concentration.bc_dirichlet
- 
+
  c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
  c = c[0].reshape((len(c[0]),1))
+ # --------------------------------------------------------------------------------
