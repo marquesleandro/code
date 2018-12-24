@@ -134,7 +134,7 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
- save.saveVTK('/home/marquesleandro/results/convection_lagrangian','coronary%s' %t)
+ save.saveVTK('/home/marquesleandro/results/convection_lagrangian2','coronary%s' %t)
  # --------------------------------------------------------------------------------
 
  # ------------------------ Solver - Taylor Galerkin ------------------------------
@@ -157,7 +157,7 @@ for t in tqdm(range(0, nt)):
  x_d = mesh.x - vx*dt
  y_d = mesh.y - vy*dt
 
- c_d = semi_lagrangian.semi_lagrangian(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, c)
+ c_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, c)
 
  A = np.copy(M)/dt
  concentration_RHS = sps.lil_matrix.dot(A,c_d)
