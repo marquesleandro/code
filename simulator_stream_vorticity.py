@@ -26,6 +26,7 @@ import scipy.sparse.linalg
 import import_msh
 import assembly
 import bc_apply
+import semi_lagrangian
 import export_vtk
 
 
@@ -52,12 +53,12 @@ print ""
 # ==========
 
 # Time
-dt = 0.0005
-nt = 20000
+dt = 0.5
+nt = 2000
 theta = 1.0
 
 # Nondimensional Numbers
-Re = 54.5
+Re = 1000.0
 Sc = 1.0
 
 # --------------------- Parameters of the Simulation ------------------------------
@@ -170,8 +171,8 @@ vorticity_bc_1 = np.zeros([mesh.npoints,1], dtype = float)
 for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
-# save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,w,psi,vx,vy)
-# save.saveVTK('/home/marquesleandro/results/result_coronary_RealGeoStrut_ext1','coronary%s' %t)
+ save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
+ save.saveVTK('/home/marquesleandro/results/poiseuille','poiseuille%s' %t)
  # --------------------------------------------------------------------------------
 
 
@@ -198,15 +199,32 @@ for t in tqdm(range(0, nt)):
  # --------------------------------------------------------------------------------
 
 
-
  # --------- Step 3 - Solve the vorticity transport equation ----------------------
+ # Taylor Galerkin Scheme
+# A = np.copy(M)/dt
+# vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
+#                                         - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
+#                - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
+#                                         + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
+#                - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
+#                                         + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
+#
+# vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+# vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+# vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+# 
+# w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+# w = w[0].reshape((len(w[0]),1))
+
+
+ # Semi-Lagrangian Scheme
+ x_d = mesh.x - vx*dt
+ y_d = mesh.y - vy*dt
+
+ w_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
+
  A = np.copy(M)/dt
- vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
-                                         - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
-                - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
-                                         + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
-                - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
-                                         + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
+ vorticity_RHS = sps.lil_matrix.dot(A,w_d)
 
  vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
  vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
