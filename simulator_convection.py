@@ -56,8 +56,8 @@ print ""
 # ==========
 
 # Time
-dt = 0.005
-nt = 1500 
+dt = 0.05
+nt = 250
 theta = 1.0
 
 # Nondimensional Numbers
@@ -157,7 +157,7 @@ for t in tqdm(range(0, nt)):
  x_d = mesh.x - vx*dt
  y_d = mesh.y - vy*dt
 
- c_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, c)
+ c_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, c)
 
  A = np.copy(M)/dt
  concentration_RHS = sps.lil_matrix.dot(A,c_d)

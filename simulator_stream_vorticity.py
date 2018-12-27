@@ -53,12 +53,12 @@ print ""
 # ==========
 
 # Time
-dt = 0.5
-nt = 2000
+dt = 0.05
+nt = 250
 theta = 1.0
 
 # Nondimensional Numbers
-Re = 1000.0
+Re = 100.0
 Sc = 1.0
 
 # --------------------- Parameters of the Simulation ------------------------------
