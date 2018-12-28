@@ -30,6 +30,7 @@ import semi_lagrangian
 import export_vtk
 
 
+
 print '------------'
 print 'IMPORT MESH:'
 print '------------'
@@ -45,7 +46,6 @@ mesh.coord()
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
-
 
 
 # ==========
@@ -78,6 +78,7 @@ print ""
 
 
 
+
 print '--------'
 print 'ASSEMBLY:'
 print '--------'
@@ -96,6 +97,7 @@ LHS_psi0 = sps.lil_matrix.copy(K)
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
+
 
 
 
@@ -135,6 +137,11 @@ condition_streamfunction.gaussian_elimination(LHS_psi0,mesh.neighbors_nodes)
 #condition_concentration.dirichlet_condition(mesh.dirichlet_pts[4])
 #condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
 
+# ---------------------------------------------------------------------------------
+
+
+
+
 # -------------------------- Initial condition ------------------------------------
 vx = np.copy(condition_xvelocity.bc_1)
 vy = np.copy(condition_yvelocity.bc_1)
@@ -143,20 +150,24 @@ psi = np.copy(condition_streamfunction.bc_1)
 w = np.zeros([mesh.npoints,1], dtype = float)
 
 
-# ------------ Step 1 - Compute the vorticity and stream field --------------------
-# Vorticity initial
-AA = sps.lil_matrix.dot(Gx,vy) - sps.lil_matrix.dot(Gy,vx)
-w = scipy.sparse.linalg.cg(M,AA,w, maxiter=1.0e+05, tol=1.0e-05)
+# Step 1 - Vorticity initial
+vorticity_RHS = sps.lil_matrix.dot(Gx,vy) - sps.lil_matrix.dot(Gy,vx)
+vorticity_LHS = sps.lil_matrix.copy(M)
+
+w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
 w = w[0].reshape((len(w[0]),1))
 
 
-# Streamline initial
-vorticity_RHS = sps.lil_matrix.dot(M,w)
-vorticity_RHS = np.multiply(vorticity_RHS,condition_streamfunction.bc_2)
-vorticity_RHS += condition_streamfunction.bc_dirichlet
-psi = scipy.sparse.linalg.cg(condition_streamfunction.LHS,vorticity_RHS,psi, maxiter=1.0e+05, tol=1.0e-05)
+# Step 1 - Streamline initial
+streamfunction_RHS = sps.lil_matrix.dot(M,w)
+streamfunction_RHS = np.multiply(streamfunction_RHS,condition_streamfunction.bc_2)
+streamfunction_RHS = streamfunction_RHS + condition_streamfunction.bc_dirichlet
+
+psi = scipy.sparse.linalg.cg(condition_streamfunction.LHS,streamfunction_RHS,psi, maxiter=1.0e+05, tol=1.0e-05)
 psi = psi[0].reshape((len(psi[0]),1))
+
 # ---------------------------------------------------------------------------------
+
 
 
 end_time = time()
@@ -182,9 +193,12 @@ for t in tqdm(range(0, nt)):
 
 
  # ---------- Step 2 - Compute the boundary conditions for vorticity --------------
- AA = sps.lil_matrix.dot(Gx,vy) - sps.lil_matrix.dot(Gy,vx)
- vorticity_bc_1 = scipy.sparse.linalg.cg(M,AA,vorticity_bc_1, maxiter=1.0e+05, tol=1.0e-05)
+ vorticity_RHS = sps.lil_matrix.dot(Gx,vy) - sps.lil_matrix.dot(Gy,vx)
+ vorticity_LHS = sps.lil_matrix.copy(M)
+
+ vorticity_bc_1 = scipy.sparse.linalg.cg(M,vorticity_RHS,vorticity_bc_1, maxiter=1.0e+05, tol=1.0e-05)
  vorticity_bc_1 = vorticity_bc_1[0].reshape((len(vorticity_bc_1[0]),1))
+
 
  # Gaussian elimination
  vorticity_bc_dirichlet = np.zeros([mesh.npoints,1], dtype = float)
@@ -253,15 +267,15 @@ for t in tqdm(range(0, nt)):
 
  # -------- Step 5 - Compute the velocity field -----------------------------------
  # Velocity vx
- AA = sps.lil_matrix.dot(Gy,psi)
- xvelocity_RHS = np.multiply(AA,condition_xvelocity.bc_2)
+ xvelocity_RHS = sps.lil_matrix.dot(Gy,psi)
+ xvelocity_RHS = np.multiply(xvelocity_RHS,condition_xvelocity.bc_2)
  xvelocity_RHS = xvelocity_RHS + condition_xvelocity.bc_dirichlet
  vx = scipy.sparse.linalg.cg(condition_xvelocity.LHS,xvelocity_RHS,vx, maxiter=1.0e+05, tol=1.0e-05)
  vx = vx[0].reshape((len(vx[0]),1))
  
  # Velocity vy
- AA = -sps.lil_matrix.dot(Gx,psi)
- yvelocity_RHS = np.multiply(AA,condition_yvelocity.bc_2)
+ yvelocity_RHS = -sps.lil_matrix.dot(Gx,psi)
+ yvelocity_RHS = np.multiply(yvelocity_RHS,condition_yvelocity.bc_2)
  yvelocity_RHS = yvelocity_RHS + condition_yvelocity.bc_dirichlet
  vy = scipy.sparse.linalg.cg(condition_yvelocity.LHS,yvelocity_RHS,vy, maxiter=1.0e+05, tol=1.0e-05)
  vy = vy[0].reshape((len(vy[0]),1))
