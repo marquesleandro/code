@@ -36,7 +36,7 @@ print '------------'
 
 start_time = time()
 
-name_mesh = 'malha_poiseuille.msh'
+name_mesh = 'malha_cavity.msh'
 number_equation = 3
 mesh = import_msh.Linear('../mesh',name_mesh,number_equation)
 mesh.ien()
@@ -53,12 +53,12 @@ print ""
 # ==========
 
 # Time
-dt = 0.05
-nt = 250
+dt = 0.0005
+nt = 50000
 theta = 1.0
 
 # Nondimensional Numbers
-Re = 100.0
+Re = 400.0
 Sc = 1.0
 
 # --------------------- Parameters of the Simulation ------------------------------
@@ -108,21 +108,26 @@ start_time = time()
 # ------------------------ Boundaries Conditions ----------------------------------
 
 # Applying vx condition
-condition_xvelocity = bc_apply.Poiseuille(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
+condition_xvelocity = bc_apply.Cavity(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
 condition_xvelocity.neumann_condition(mesh.neumann_edges[1])
 condition_xvelocity.dirichlet_condition(mesh.dirichlet_pts[1])
 condition_xvelocity.gaussian_elimination(LHS_vx0,mesh.neighbors_nodes)
 vorticity_ibc = condition_xvelocity.ibc
 
 # Applying vy condition
-condition_yvelocity = bc_apply.Poiseuille(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
+condition_yvelocity = bc_apply.Cavity(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
 condition_yvelocity.neumann_condition(mesh.neumann_edges[2])
 condition_yvelocity.dirichlet_condition(mesh.dirichlet_pts[2])
 condition_yvelocity.gaussian_elimination(LHS_vy0,mesh.neighbors_nodes)
 
 # Applying psi condition
-condition_streamfunction = bc_apply.Poiseuille(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
-condition_streamfunction.streamfunction_condition(mesh.dirichlet_pts[3],LHS_psi0,mesh.neighbors_nodes)
+#condition_streamfunction = bc_apply.Cavity(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
+#condition_streamfunction.streamfunction_condition(mesh.dirichlet_pts[3],LHS_psi0,mesh.neighbors_nodes)
+
+condition_streamfunction = bc_apply.Cavity(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
+condition_streamfunction.neumann_condition(mesh.neumann_edges[3])
+condition_streamfunction.dirichlet_condition(mesh.dirichlet_pts[3])
+condition_streamfunction.gaussian_elimination(LHS_psi0,mesh.neighbors_nodes)
 
 # Applying concentration condition
 #condition_concentration = bc_apply.Linear(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
@@ -172,7 +177,7 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
- save.saveVTK('/home/marquesleandro/results/poiseuille','poiseuille%s' %t)
+ save.saveVTK('/home/marquesleandro/results/cavity_400_taylor','cavity%s' %t)
  # --------------------------------------------------------------------------------
 
 
@@ -201,30 +206,13 @@ for t in tqdm(range(0, nt)):
 
  # --------- Step 3 - Solve the vorticity transport equation ----------------------
  # Taylor Galerkin Scheme
-# A = np.copy(M)/dt
-# vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
-#                                         - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
-#                - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
-#                                         + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
-#                - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
-#                                         + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
-#
-# vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
-# vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
-# vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
-# 
-# w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
-# w = w[0].reshape((len(w[0]),1))
-
-
- # Semi-Lagrangian Scheme
- x_d = mesh.x - vx*dt
- y_d = mesh.y - vy*dt
-
- w_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
-
  A = np.copy(M)/dt
- vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+ vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
+                                         - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
+                - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
+                                         + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
+                - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
+                                         + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
 
  vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
  vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
@@ -232,6 +220,23 @@ for t in tqdm(range(0, nt)):
  
  w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
  w = w[0].reshape((len(w[0]),1))
+
+
+ # Semi-Lagrangian Scheme
+# x_d = mesh.x - vx*dt
+# y_d = mesh.y - vy*dt
+#
+# w_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
+#
+# A = np.copy(M)/dt
+# vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+#
+# vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+# vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+# vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+# 
+# w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+# w = w[0].reshape((len(w[0]),1))
  # --------------------------------------------------------------------------------
 
 
