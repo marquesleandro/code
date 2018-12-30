@@ -53,8 +53,8 @@ print ""
 # ==========
 
 # Time
-dt = 0.0005
-nt = 50000
+dt = 0.05
+nt = 5000
 theta = 1.0
 
 # Nondimensional Numbers
@@ -85,7 +85,7 @@ print '--------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear(mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
 
 
 LHS_vx0 = sps.lil_matrix.copy(M)
@@ -188,7 +188,7 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
- save.saveVTK('/home/marquesleandro/results/cavity_400_taylor','cavity%s' %t)
+ save.saveVTK('/home/marquesleandro/results/cavity_400','cavity%s' %t)
  # --------------------------------------------------------------------------------
 
 
@@ -220,30 +220,13 @@ for t in tqdm(range(0, nt)):
 
  # --------- Step 3 - Solve the vorticity transport equation ----------------------
  # Taylor Galerkin Scheme
- A = np.copy(M)/dt
- vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
-                                         - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
-                - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
-                                         + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
-                - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
-                                         + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
-
- vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
- vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
- vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
- 
- w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
- w = w[0].reshape((len(w[0]),1))
-
-
- # Semi-Lagrangian Scheme
-# x_d = mesh.x - vx*dt
-# y_d = mesh.y - vy*dt
-#
-# w_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
-#
 # A = np.copy(M)/dt
-# vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+# vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
+#                                         - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
+#                - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w))\
+#                                         + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
+#                - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w))\
+#                                         + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
 #
 # vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
 # vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
@@ -251,6 +234,23 @@ for t in tqdm(range(0, nt)):
 # 
 # w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
 # w = w[0].reshape((len(w[0]),1))
+
+
+ # Semi-Lagrangian Scheme
+ x_d = mesh.x - vx*dt
+ y_d = mesh.y - vy*dt
+
+ w_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
+
+ A = np.copy(M)/dt
+ vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+
+ vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+ vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+ vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+ 
+ w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+ w = w[0].reshape((len(w[0]),1))
  # --------------------------------------------------------------------------------
 
 
