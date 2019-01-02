@@ -56,7 +56,7 @@ print ""
 # ==========
 
 # Time
-dt = 0.05
+dt = 0.025
 nt = 250
 theta = 1.0
 
@@ -86,7 +86,7 @@ print '--------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear(mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
 
 #LHS_c0 = (sps.lil_matrix.copy(M)/dt) + (theta/Re)*sps.lil_matrix.copy(K)
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
@@ -134,7 +134,7 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
- save.saveVTK('/home/marquesleandro/results/convection_lagrangian2','coronary%s' %t)
+ save.saveVTK('/home/marquesleandro/results/convection_lagrangian','convection%s' %t)
  # --------------------------------------------------------------------------------
 
  # ------------------------ Solver - Taylor Galerkin ------------------------------
