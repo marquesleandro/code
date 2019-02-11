@@ -39,7 +39,7 @@ start_time = time()
 
 name_mesh = 'malha_cavity.msh'
 number_equation = 3
-mesh = import_msh.Linear('../mesh',name_mesh,number_equation)
+mesh = import_msh.Linear2D('../mesh',name_mesh,number_equation)
 mesh.ien()
 mesh.coord()
 
@@ -85,7 +85,7 @@ print '--------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear2D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
 
 
 LHS_vx0 = sps.lil_matrix.copy(M)
@@ -132,7 +132,7 @@ condition_streamfunction.dirichlet_condition(mesh.dirichlet_pts[3])
 condition_streamfunction.gaussian_elimination(LHS_psi0,mesh.neighbors_nodes)
 
 # Applying concentration condition
-#condition_concentration = bc_apply.Linear(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
+#condition_concentration = bc_apply.Cavity(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
 #condition_concentration.neumann_condition(mesh.neumann_edges[4])
 #condition_concentration.dirichlet_condition(mesh.dirichlet_pts[4])
 #condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
@@ -187,7 +187,7 @@ vorticity_bc_1 = np.zeros([mesh.npoints,1], dtype = float)
 for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
- save = export_vtk.Linear(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
+ save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
  save.saveVTK('/home/marquesleandro/results/cavity_400','cavity%s' %t)
  # --------------------------------------------------------------------------------
 
@@ -240,7 +240,7 @@ for t in tqdm(range(0, nt)):
  x_d = mesh.x - vx*dt
  y_d = mesh.y - vy*dt
 
- w_d = semi_lagrangian.Linear_2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, vorticity_bc_1, vorticity_bc_2, w)
+ w_d = semi_lagrangian.Linear2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
 
  A = np.copy(M)/dt
  vorticity_RHS = sps.lil_matrix.dot(A,w_d)
