@@ -40,8 +40,8 @@ start_time = time()
 name_mesh = 'malha_cavity.msh'
 number_equation = 3
 mesh = import_msh.Linear2D('../mesh',name_mesh,number_equation)
-mesh.ien()
 mesh.coord()
+mesh.ien()
 
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
@@ -53,9 +53,8 @@ print ""
 # ==========
 
 # Time
-dt = 0.05
+dt = float(mesh.length_min)
 nt = 5000
-theta = 1.0
 
 # Nondimensional Numbers
 Re = 400.0
@@ -70,7 +69,6 @@ print 'Number of nodes: %s' %mesh.npoints
 print 'Number of elements: %s' %mesh.nelem
 print 'Time step: %s' %dt
 print 'Number of time iteration: %s' %nt
-print 'Time scheme (theta): %s' %theta
 print 'Reynolds number: %s' %Re
 print 'Schmidt number: %s' %Sc
 print ""
@@ -91,7 +89,7 @@ Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear2D(mesh.GL, mesh.npoint
 LHS_vx0 = sps.lil_matrix.copy(M)
 LHS_vy0 = sps.lil_matrix.copy(M)
 LHS_psi0 = sps.lil_matrix.copy(K)
-#LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (theta/(Re*Sc))*sps.lil_matrix.copy(K))
+#LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (1.0/(Re*Sc))*sps.lil_matrix.copy(K))
 
 
 end_time = time()
@@ -205,7 +203,7 @@ for t in tqdm(range(0, nt)):
  vorticity_bc_neumann = np.zeros([mesh.npoints,1], dtype = float)
  vorticity_bc_2 = np.ones([mesh.npoints,1], dtype = float)
  
- vorticity_LHS = ((np.copy(M)/dt) + (theta/Re)*np.copy(K))
+ vorticity_LHS = ((np.copy(M)/dt) + (1.0/Re)*np.copy(K))
  for mm in vorticity_ibc:
   for nn in mesh.neighbors_nodes[mm]:
    vorticity_bc_dirichlet[nn] -= float(vorticity_LHS[nn,mm]*vorticity_bc_1[mm])

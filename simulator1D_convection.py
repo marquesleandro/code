@@ -39,8 +39,8 @@ start_time = time()
 name_mesh = 'malha_1D.msh'
 number_equation = 1
 mesh = import_msh.Linear1D('../mesh',name_mesh,number_equation)
-mesh.ien()
 mesh.coord()
+mesh.ien()
 
 
 end_time = time()
@@ -52,8 +52,10 @@ print ""
 # ==========
 
 # Time
-dt = 0.0005
+CFL = 0.5
+dt = float(CFL*mesh.length_min)
 nt = 2500
+
 
 # Nondimensional Numbers
 Re = 1000.0
@@ -144,3 +146,4 @@ for t in tqdm(range(0, nt)):
  c = c[0].reshape((len(c[0]),1))
  c[0] = c[1]
 # --------------------------------------------------------------------------------
+

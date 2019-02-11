@@ -41,8 +41,8 @@ start_time = time()
 name_mesh = 'malha_convection.msh'
 number_equation = 1
 mesh = import_msh.Linear2D('../mesh',name_mesh,number_equation)
-mesh.ien()
 mesh.coord()
+mesh.ien()
 
 
 end_time = time()
@@ -56,9 +56,10 @@ print ""
 # ==========
 
 # Time
-dt = 0.025
+CFL = 0.5
+dt = float(CFL*mesh.length_min)
 nt = 250
-theta = 1.0
+
 
 # Nondimensional Numbers
 Re = 1000.0
@@ -71,9 +72,9 @@ print '-----------------------------'
 print 'Mesh: %s' %name_mesh
 print 'Number of nodes: %s' %mesh.npoints
 print 'Number of elements: %s' %mesh.nelem
+print 'Length min: %f' %mesh.length_min
 print 'Time step: %s' %dt
 print 'Number of time iteration: %s' %nt
-print 'Time scheme (theta): %s' %theta
 print 'Reynolds number: %s' %Re
 print 'Schmidt number: %s' %Sc
 print ""
@@ -88,7 +89,7 @@ start_time = time()
 
 Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear2D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
 
-#LHS_c0 = (sps.lil_matrix.copy(M)/dt) + (theta/Re)*sps.lil_matrix.copy(K)
+#LHS_c0 = (sps.lil_matrix.copy(M)/dt) + (1.0/Re)*sps.lil_matrix.copy(K)
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
 
 
@@ -134,7 +135,7 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
- save.saveVTK('/home/marquesleandro/results/convection_semilagrangian','convection%s' %t)
+ save.saveVTK('/home/marquesleandro/results/convection_semilagrangian2D','convection%s' %t)
  # --------------------------------------------------------------------------------
 
  # ------------------------ Solver - Taylor Galerkin ------------------------------
