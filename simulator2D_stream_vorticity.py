@@ -14,7 +14,8 @@
 # =======================
 
 import sys
-sys.path.insert(0, '../lib_class')
+directory = '/home/marquesleandro/lib_class'
+sys.path.insert(0, directory)
 
 from tqdm import tqdm
 from time import time
@@ -31,6 +32,7 @@ import export_vtk
 
 
 
+
 print '------------'
 print 'IMPORT MESH:'
 print '------------'
@@ -39,7 +41,9 @@ start_time = time()
 
 name_mesh = 'malha_cavity.msh'
 number_equation = 3
-mesh = import_msh.Linear2D('../mesh',name_mesh,number_equation)
+directory = '/home/marquesleandro/mesh'
+
+mesh = import_msh.Linear2D(directory,name_mesh,number_equation)
 mesh.coord()
 mesh.ien()
 
@@ -48,31 +52,31 @@ print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
 
 
-# ==========
-# Parameters
-# ==========
+
+
+print '-----------------------------'
+print 'PARAMETERS OF THE SIMULATION:'
+print '-----------------------------'
 
 # Time
 dt = float(mesh.length_min)
 nt = 5000
 
+
 # Nondimensional Numbers
 Re = 400.0
 Sc = 1.0
 
-# --------------------- Parameters of the Simulation ------------------------------
-print '-----------------------------'
-print 'PARAMETERS OF THE SIMULATION:'
-print '-----------------------------'
+
 print 'Mesh: %s' %name_mesh
 print 'Number of nodes: %s' %mesh.npoints
 print 'Number of elements: %s' %mesh.nelem
+print 'Smallest edge length: %f' %mesh.length_min
 print 'Time step: %s' %dt
 print 'Number of time iteration: %s' %nt
 print 'Reynolds number: %s' %Re
 print 'Schmidt number: %s' %Sc
 print ""
-# ---------------------------------------------------------------------------------
 
 
 
@@ -91,7 +95,6 @@ LHS_vy0 = sps.lil_matrix.copy(M)
 LHS_psi0 = sps.lil_matrix.copy(K)
 #LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (1.0/(Re*Sc))*sps.lil_matrix.copy(K))
 
-
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
@@ -105,8 +108,8 @@ print '--------------------------------'
 
 start_time = time()
 
-# ------------------------ Boundaries Conditions ----------------------------------
 
+# ------------------------ Boundaries Conditions ----------------------------------
 # Applying vx condition
 condition_xvelocity = bc_apply.Cavity(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
 condition_xvelocity.neumann_condition(mesh.neumann_edges[1])
@@ -134,10 +137,7 @@ condition_streamfunction.gaussian_elimination(LHS_psi0,mesh.neighbors_nodes)
 #condition_concentration.neumann_condition(mesh.neumann_edges[4])
 #condition_concentration.dirichlet_condition(mesh.dirichlet_pts[4])
 #condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
-
 # ---------------------------------------------------------------------------------
-
-
 
 
 # -------------------------- Initial condition ------------------------------------
@@ -163,14 +163,12 @@ streamfunction_RHS = streamfunction_RHS + condition_streamfunction.bc_dirichlet
 
 psi = scipy.sparse.linalg.cg(condition_streamfunction.LHS,streamfunction_RHS,psi, maxiter=1.0e+05, tol=1.0e-05)
 psi = psi[0].reshape((len(psi[0]),1))
-
 # ---------------------------------------------------------------------------------
-
-
 
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
+
 
 
 
@@ -179,14 +177,14 @@ print 'SOLVE THE LINEARS EQUATIONS:'
 print '----------------------------'
 print ""
 
-
 vorticity_bc_1 = np.zeros([mesh.npoints,1], dtype = float) 
 
 for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
- save.saveVTK('/home/marquesleandro/results/cavity_400','cavity%s' %t)
+ save.create_dir('cavity_400')
+ save.saveVTK('cavity%s' %t)
  # --------------------------------------------------------------------------------
 
 

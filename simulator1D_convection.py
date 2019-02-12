@@ -14,7 +14,8 @@
 # =======================
 
 import sys
-sys.path.insert(0, '../lib_class')
+directory = '/home/marquesleandro/lib_class'
+sys.path.insert(0, directory)
 
 from tqdm import tqdm
 from time import time
@@ -30,6 +31,8 @@ import semi_lagrangian
 import export_vtk
 
 
+
+
 print '------------'
 print 'IMPORT MESH:'
 print '------------'
@@ -38,18 +41,22 @@ start_time = time()
 
 name_mesh = 'malha_1D.msh'
 number_equation = 1
-mesh = import_msh.Linear1D('../mesh',name_mesh,number_equation)
+directory = '/home/marquesleandro/mesh'
+
+mesh = import_msh.Linear2D(directory,name_mesh,number_equation)
 mesh.coord()
 mesh.ien()
-
 
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
 
-# ==========
-# Parameters
-# ==========
+
+
+
+print '-----------------------------'
+print 'PARAMETERS OF THE SIMULATION:'
+print '-----------------------------'
 
 # Time
 CFL = 0.5
@@ -61,19 +68,18 @@ nt = 2500
 Re = 1000.0
 Sc = 1.0
 
-# ---------------- PARAMETERS ------------------
-print '-----------------------------'
-print 'PARAMETERS OF THE SIMULATION:'
-print '-----------------------------'
+
 print 'Mesh: %s' %name_mesh
 print 'Number of nodes: %s' %mesh.npoints
 print 'Number of elements: %s' %mesh.nelem
+print 'Smallest edge length: %f' %mesh.length_min
 print 'Time step: %s' %dt
 print 'Number of time iteration: %s' %nt
 print 'Reynolds number: %s' %Re
 print 'Schmidt number: %s' %Sc
 print ""
-# -----------------------------------------------
+
+
 
 
 print '--------'
@@ -86,10 +92,11 @@ K, M, G = assembly.Linear1D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x)
 
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
 
-
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
+
+
 
 
 print '--------------------------------'
@@ -111,11 +118,11 @@ c = np.copy(condition_concentration.c)
 vx = np.copy(condition_concentration.vx)
 # ----------------------------------------------------
 
-
-
 end_time = time()
 print 'time duration: %.1f seconds' %(end_time - start_time)
 print ""
+
+
 
 
 print '----------------------------'
@@ -127,7 +134,8 @@ for t in tqdm(range(0, nt)):
  
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear1D(mesh.x,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vx)
- save.saveVTK('/home/marquesleandro/results/convection_semilagrangian','convection%s' %t)
+ save.create_dir('convection_semilagrangian1D')
+ save.saveVTK('convection%s' %t)
  # --------------------------------------------------------------------------------
 
  # ------------------------ Solver - Semi Lagrangian ------------------------------
