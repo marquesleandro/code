@@ -61,7 +61,7 @@ print '-----------------------------'
 # Time
 CFL = 0.5
 dt = float(CFL*mesh.length_min)
-nt = 3
+nt = 1250
 
 
 # Nondimensional Numbers
@@ -135,7 +135,7 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
- save.create_dir('convection_semilagrangian2D_v1')
+ save.create_dir('convection_semilagrangian2D')
  save.saveVTK('convection%s' %t)
  # --------------------------------------------------------------------------------
 
