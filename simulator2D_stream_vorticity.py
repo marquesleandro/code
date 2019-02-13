@@ -23,18 +23,17 @@ import export_vtk
 
 
 
-print ""
-print " Simulator: %s" %sys.argv[0]
-
 print '''
- ===============================================
- Simulator created by Leandro Marques at 12/2018
+               COPYRIGHT                    
+ ======================================
+ Simulator: %s
+ created by Leandro Marques at 02/2019
  e-mail: marquesleandro67@gmail.com
  Gesar Search Group
  State University of the Rio de Janeiro
- ===============================================
-'''
-print ""
+ ======================================
+''' %sys.argv[0]
+
 
 
 
@@ -73,8 +72,10 @@ CFL = 0.5
 dt = float(CFL*mesh.length_min)
 
 end_time = time()
-print ' time duration: %.1f seconds' %(end_time - start_time)
+import_mesh_time = end_time - start_time
+print ' time duration: %.1f seconds' %import_mesh_time
 print ""
+
 
 
 
@@ -93,8 +94,10 @@ LHS_psi0 = sps.lil_matrix.copy(K)
 #LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (1.0/(Re*Sc))*sps.lil_matrix.copy(K))
 
 end_time = time()
-print ' time duration: %.1f seconds' %(end_time - start_time)
+assembly_time = end_time - start_time
+print ' time duration: %.1f seconds' %assembly_time
 print ""
+
 
 
 
@@ -163,8 +166,10 @@ psi = psi[0].reshape((len(psi[0]),1))
 # ---------------------------------------------------------------------------------
 
 end_time = time()
-print ' time duration: %.1f seconds' %(end_time - start_time)
+bc_apply_time = end_time - start_time
+print ' time duration: %.1f seconds' %bc_apply_time
 print ""
+
 
 
 
@@ -196,6 +201,7 @@ print ""
 
 vorticity_bc_1 = np.zeros([mesh.npoints,1], dtype = float) 
 
+start_time = time()
 for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
@@ -309,3 +315,8 @@ for t in tqdm(range(0, nt)):
 # c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
 # c = c[0].reshape((len(c[0]),1))
  # --------------------------------------------------------------------------------
+
+end_time = time()
+solution_time = end_time - start_time
+
+relatory.export(directory_name, sys.argv[0], mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time)
