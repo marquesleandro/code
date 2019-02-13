@@ -156,10 +156,7 @@ for t in tqdm(range(0, nt)):
  # --------------------------------------------------------------------------------
 
  # ------------------------ Solver - Semi Lagrangian ------------------------------
- x_d = mesh.x - vx*dt
-
- #c_d = semi_lagrangian.Linear1D_v2(mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, x_d, c)
- c_d = semi_lagrangian.Linear1D(mesh.npoints, mesh.IEN, mesh.x, x_d, mesh.neighbors_elements, c)
+ c_d = semi_lagrangian.Linear1D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c)
 
  A = np.copy(M)/dt
  concentration_RHS = sps.lil_matrix.dot(A,c_d)

@@ -250,10 +250,7 @@ for t in tqdm(range(0, nt)):
 
 
  # Semi-Lagrangian Scheme
- x_d = mesh.x - vx*dt
- y_d = mesh.y - vy*dt
-
- w_d = semi_lagrangian.Linear2D(mesh.npoints, mesh.IEN, mesh.x, mesh.y, x_d, y_d, mesh.neighbors_elements, w)
+ w_d = semi_lagrangian.Linear2D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, w)
 
  A = np.copy(M)/dt
  vorticity_RHS = sps.lil_matrix.dot(A,w_d)
