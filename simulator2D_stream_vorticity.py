@@ -1,14 +1,3 @@
-# ==========================================
-# Code created by Leandro Marques at 12/2018
-# Gesar Search Group
-# State University of the Rio de Janeiro
-# e-mail: marquesleandro67@gmail.com
-# ==========================================
-
-# FEM Simulator - Streamfunction-Vorticity Formulation
-
-
-
 # =======================
 # Importing the libraries
 # =======================
@@ -24,6 +13,7 @@ import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg
 
+import search_file
 import import_msh
 import assembly
 import bc_apply
@@ -33,62 +23,70 @@ import export_vtk
 
 
 
-print '------------'
-print 'IMPORT MESH:'
-print '------------'
+print ""
+print " Simulator: %s" %sys.argv[0]
+
+print '''
+ ===============================================
+ Simulator created by Leandro Marques at 12/2018
+ e-mail: marquesleandro67@gmail.com
+ Gesar Search Group
+ State University of the Rio de Janeiro
+ ===============================================
+'''
+print ""
+
+
+
+
+print ' ------'
+print ' INPUT:'
+print ' ------'
+
+print ""
+mesh_name = raw_input(" Enter mesh name: ")
+equation_number = int(raw_input(" Enter equation number: "))
+nt = int(raw_input(" Enter number of time interations (nt): "))
+Re = float(raw_input(" Enter Reynolds Number (Re): "))
+Sc = float(raw_input(" Enter Schmidt Number (Sc): "))
+directory_name = raw_input(" Enter folder name to save simulations: ")
+file_simulation = (sys.argv[0].split('.py'))[0]
+print ""
+
+
+
+
+print ' ------------'
+print ' IMPORT MESH:'
+print ' ------------'
 
 start_time = time()
 
-name_mesh = 'malha_cavity.msh'
-number_equation = 3
-directory = '/home/marquesleandro/mesh'
+directory = search_file.Find(mesh_name)
+if directory == 'File does not found':
+ sys.exit()
 
-mesh = import_msh.Linear2D(directory,name_mesh,number_equation)
+mesh = import_msh.Linear2D(directory,mesh_name,equation_number)
 mesh.coord()
 mesh.ien()
 
+CFL = 0.5
+dt = float(CFL*mesh.length_min)
+
 end_time = time()
-print 'time duration: %.1f seconds' %(end_time - start_time)
+print ' time duration: %.1f seconds' %(end_time - start_time)
 print ""
 
 
 
 
-print '-----------------------------'
-print 'PARAMETERS OF THE SIMULATION:'
-print '-----------------------------'
-
-# Time
-dt = float(mesh.length_min)
-nt = 5000
-
-
-# Nondimensional Numbers
-Re = 400.0
-Sc = 1.0
-
-
-print 'Mesh: %s' %name_mesh
-print 'Number of nodes: %s' %mesh.npoints
-print 'Number of elements: %s' %mesh.nelem
-print 'Smallest edge length: %f' %mesh.length_min
-print 'Time step: %s' %dt
-print 'Number of time iteration: %s' %nt
-print 'Reynolds number: %s' %Re
-print 'Schmidt number: %s' %Sc
-print ""
-
-
-
-
-print '--------'
-print 'ASSEMBLY:'
-print '--------'
+print ' ---------'
+print ' ASSEMBLY:'
+print ' ---------'
 
 start_time = time()
 
 Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear2D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
-
 
 LHS_vx0 = sps.lil_matrix.copy(M)
 LHS_vy0 = sps.lil_matrix.copy(M)
@@ -96,15 +94,15 @@ LHS_psi0 = sps.lil_matrix.copy(K)
 #LHS_c0 = ((sps.lil_matrix.copy(M)/dt) + (1.0/(Re*Sc))*sps.lil_matrix.copy(K))
 
 end_time = time()
-print 'time duration: %.1f seconds' %(end_time - start_time)
+print ' time duration: %.1f seconds' %(end_time - start_time)
 print ""
 
 
 
 
-print '--------------------------------'
-print 'INITIAL AND BOUNDARY CONDITIONS:'
-print '--------------------------------'
+print ' --------------------------------'
+print ' INITIAL AND BOUNDARY CONDITIONS:'
+print ' --------------------------------'
 
 start_time = time()
 
@@ -166,15 +164,35 @@ psi = psi[0].reshape((len(psi[0]),1))
 # ---------------------------------------------------------------------------------
 
 end_time = time()
-print 'time duration: %.1f seconds' %(end_time - start_time)
+print ' time duration: %.1f seconds' %(end_time - start_time)
 print ""
 
 
 
 
-print '----------------------------'
-print 'SOLVE THE LINEARS EQUATIONS:'
-print '----------------------------'
+print ' -----------------------------'
+print ' PARAMETERS OF THE SIMULATION:'
+print ' -----------------------------'
+
+print ' Mesh: %s' %mesh_name
+print ' Number of equation: %s' %equation_number
+print ' Number of nodes: %s' %mesh.npoints
+print ' Number of elements: %s' %mesh.nelem
+print ' Smallest edge length: %f' %mesh.length_min
+print ' Time step: %s' %dt
+print ' Number of time iteration: %s' %nt
+print ' Reynolds number: %s' %Re
+print ' Schmidt number: %s' %Sc
+print ""
+
+
+
+
+print ' ----------------------------'
+print ' SOLVE THE LINEARS EQUATIONS:'
+print ' ----------------------------'
+print ""
+print ' Saving simulation in %s' %directory_name
 print ""
 
 vorticity_bc_1 = np.zeros([mesh.npoints,1], dtype = float) 
@@ -183,8 +201,8 @@ for t in tqdm(range(0, nt)):
 
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,w,w,psi,vx,vy)
- save.create_dir('cavity_400')
- save.saveVTK('cavity%s' %t)
+ save.create_dir(directory_name)
+ save.saveVTK(file_simulation + str(t))
  # --------------------------------------------------------------------------------
 
 
