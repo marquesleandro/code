@@ -165,6 +165,7 @@ for t in tqdm(range(0, nt)):
 
 
  # ------------------------ Solver - Taylor Galerkin ------------------------------
+# scheme = 'Taylor Galerkin'
 # A = np.copy(M)/dt
 # concentration_RHS = sps.lil_matrix.dot(A,c) - np.multiply(vx,sps.lil_matrix.dot(Gx,c))\
 #                                             - np.multiply(vy,sps.lil_matrix.dot(Gy,c))\
@@ -182,6 +183,7 @@ for t in tqdm(range(0, nt)):
 
 
  # ------------------------ Solver - Semi Lagrangian ------------------------------
+ scheme = 'Semi Lagrangian'
  c_d = semi_lagrangian.Linear2D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c)
 
  A = np.copy(M)/dt
@@ -197,4 +199,4 @@ for t in tqdm(range(0, nt)):
 end_time = time()
 solution_time = end_time - start_time
 
-relatory.export(directory_name, sys.argv[0], mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time)
+relatory.export(directory_name, sys.argv[0], scheme, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time)
