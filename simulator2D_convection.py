@@ -44,13 +44,12 @@ print ' INPUT:'
 print ' ------'
 
 print ""
-mesh_name = raw_input(" Enter mesh name: ")
+mesh_name = (raw_input(" Enter mesh name (.msh): ") + '.msh')
 equation_number = int(raw_input(" Enter equation number: "))
 nt = int(raw_input(" Enter number of time interations (nt): "))
 Re = float(raw_input(" Enter Reynolds Number (Re): "))
 Sc = float(raw_input(" Enter Schmidt Number (Sc): "))
 directory_name = raw_input(" Enter folder name to save simulations: ")
-file_simulation = (sys.argv[0].split('.py'))[0]
 print ""
 
 
@@ -63,7 +62,7 @@ print ' ------------'
 start_time = time()
 
 directory = search_file.Find(mesh_name)
-if directory == 'File does not found':
+if directory == 'File not found':
  sys.exit()
 
 mesh = import_msh.Linear2D(directory,mesh_name,equation_number)
@@ -154,7 +153,7 @@ for t in tqdm(range(0, nt)):
  # ------------------------ Export VTK File ---------------------------------------
  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
  save.create_dir(directory_name)
- save.saveVTK(file_simulation + str(t))
+ save.saveVTK(directory_name + str(t))
  # --------------------------------------------------------------------------------
 
 
