@@ -17,7 +17,7 @@ import search_file
 import import_msh
 import assembly
 import bc_apply
-import semi_lagrangian
+import solver
 import export_vtk
 import relatory
 
@@ -44,10 +44,19 @@ print ' ------'
 print ""
 mesh_name = (raw_input(" Enter mesh name (.msh): ") + '.msh')
 equation_number = int(raw_input(" Enter equation number: "))
-nt = int(raw_input(" Enter number of time interations (nt): "))
+print ""
+
 Re = float(raw_input(" Enter Reynolds Number (Re): "))
 Sc = float(raw_input(" Enter Schmidt Number (Sc): "))
+print ""
+
+nt = int(raw_input(" Enter number of time interations (nt): "))
 directory_name = raw_input(" Enter folder name to save simulations: ")
+
+print ""
+print ' (1) - Taylor Galerkin'
+print ' (2) - Semi Lagrangian'
+scheme_option = int(raw_input(" Enter simulation scheme option above: "))
 print ""
 
 
@@ -157,6 +166,21 @@ for t in tqdm(range(0, nt)):
  save.saveVTK(directory_name + str(t))
  # -------------------------------------------------------------------------------
 
+ # -------------------------------- Solver ---------------------------------------
+ # Taylor Galerkin
+ if scheme_option == 1:
+  scheme = solver.SemiImplicit_convection_diffusion1D(scheme_option)
+  scheme.taylor_galerkin(c, vx, dt, M, K, G, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  c = scheme.c
+
+ # Semi Lagrangian
+ elif scheme_option == 2:
+  scheme = solver.SemiImplicit_convection_diffusion1D(scheme_option)
+  scheme.semi_lagrangian(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  c = scheme.c
+ # -------------------------------------------------------------------------------
+
+
 
  # ----------------------- Solver - Taylor Galerkin ------------------------------
 # scheme = 'Taylor Galerkin'
@@ -173,17 +197,17 @@ for t in tqdm(range(0, nt)):
 
 
  # ------------------------ Solver - Semi Lagrangian -----------------------------
- scheme = 'Semi Lagrangian'
- c_d = semi_lagrangian.Linear1D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c)
-
- A = np.copy(M)/dt
- concentration_RHS = sps.lil_matrix.dot(A,c_d)
- 
- concentration_RHS = np.multiply(concentration_RHS,condition_concentration.bc_2)
- concentration_RHS = concentration_RHS + condition_concentration.bc_dirichlet
-
- c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
- c = c[0].reshape((len(c[0]),1))
+# scheme = 'Semi Lagrangian'
+# c_d = semi_lagrangian.Linear1D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c)
+#
+# A = np.copy(M)/dt
+# concentration_RHS = sps.lil_matrix.dot(A,c_d)
+# 
+# concentration_RHS = np.multiply(concentration_RHS,condition_concentration.bc_2)
+# concentration_RHS = concentration_RHS + condition_concentration.bc_dirichlet
+#
+# c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
+# c = c[0].reshape((len(c[0]),1))
  # -------------------------------------------------------------------------------
 
 end_time = time()
