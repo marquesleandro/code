@@ -59,7 +59,9 @@ print ' (2) - Semi Lagrangian'
 scheme_option = int(raw_input(" Enter simulation scheme option above: "))
 print ""
 
-
+# INCLUIR O INPUT DO SIMULATOR2D
+polynomial_order = 'teste'
+gausspoints = 1
 
 
 print ' ------------'
@@ -213,4 +215,4 @@ for t in tqdm(range(0, nt)):
 end_time = time()
 solution_time = end_time - start_time
 
-relatory.export(directory_name, sys.argv[0], scheme, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time)
+relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)

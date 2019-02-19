@@ -19,6 +19,7 @@ import assembly
 import bc_apply
 import semi_lagrangian
 import export_vtk
+import solver
 import relatory
 
 
@@ -46,12 +47,41 @@ print ' ------'
 print ""
 mesh_name = (raw_input(" Enter mesh name (.msh): ") + '.msh')
 equation_number = int(raw_input(" Enter equation number: "))
-nt = int(raw_input(" Enter number of time interations (nt): "))
+print ""
+
 Re = float(raw_input(" Enter Reynolds Number (Re): "))
 Sc = float(raw_input(" Enter Schmidt Number (Sc): "))
+print ""
+
+print ' (1) - Linear Element'
+print ' (2) - Quadratic Element'
+print ' (3) - Cubic Element'
+polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
+print ""
+
+if polynomial_option == 1:
+ print ' 3 Gauss Points'
+ print ' 4 Gauss Points'
+ print ' 5 Gauss Points'
+ gausspoints_option = int(raw_input(" Enter Gauss Points Number option above: "))
+ print ""
+
+else:
+ print ""
+ print "Error: Polynomial Order not found"
+ print ""
+ sys.exit()
+
+
+nt = int(raw_input(" Enter number of time interations (nt): "))
 directory_name = raw_input(" Enter folder name to save simulations: ")
 print ""
 
+print ' (1) - Taylor Galerkin'
+print ' (2) - Semi Lagrangian'
+scheme_option = int(raw_input(" Enter simulation scheme option above: "))
+print ""
+print ""
 
 
 
@@ -87,7 +117,7 @@ print ' ---------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy = assembly.Linear2D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order, gausspoints = assembly.Linear2D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y, gausspoints_option)
 
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
 
@@ -155,13 +185,41 @@ print ' Saving simulation in %s' %directory_name
 print ""
 
 start_time = time()
-for t in tqdm(range(0, nt)):
 
- # ------------------------ Export VTK File ---------------------------------------
- save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
- save.create_dir(directory_name)
- save.saveVTK(directory_name + str(t))
- # --------------------------------------------------------------------------------
+
+# Taylor Galerkin
+if scheme_option == 1:
+ for t in tqdm(range(0, nt)):
+
+  # ------------------------ Export VTK File ---------------------------------------
+  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
+  save.create_dir(directory_name)
+  save.saveVTK(directory_name + str(t))
+  # --------------------------------------------------------------------------------
+
+  # -------------------------------- Solver ---------------------------------------
+  scheme = solver.SemiImplicit_convection_diffusion2D(scheme_option)
+  scheme.taylor_galerkin(c, vx, vy, dt, M, Kxx, Kyx, Kxy, Kyy, Gx, Gy, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  c = scheme.c
+  # -------------------------------------------------------------------------------
+
+
+
+# Semi Lagrangian
+elif scheme_option == 2:
+ for t in tqdm(range(0, nt)):
+  # ------------------------ Export VTK File ---------------------------------------
+  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
+  save.create_dir(directory_name)
+  save.saveVTK(directory_name + str(t))
+  # --------------------------------------------------------------------------------
+
+  # -------------------------------- Solver ---------------------------------------
+  scheme = solver.SemiImplicit_convection_diffusion2D(scheme_option)
+  scheme.semi_lagrangian(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  c = scheme.c
+  # -------------------------------------------------------------------------------
+
 
 
  # ------------------------ Solver - Taylor Galerkin ------------------------------
@@ -183,20 +241,20 @@ for t in tqdm(range(0, nt)):
 
 
  # ------------------------ Solver - Semi Lagrangian ------------------------------
- scheme = 'Semi Lagrangian'
- c_d = semi_lagrangian.Linear2D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c)
-
- A = np.copy(M)/dt
- concentration_RHS = sps.lil_matrix.dot(A,c_d)
- 
- concentration_RHS = np.multiply(concentration_RHS,condition_concentration.bc_2)
- concentration_RHS = concentration_RHS + condition_concentration.bc_dirichlet
-
- c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
- c = c[0].reshape((len(c[0]),1))
+# scheme = 'Semi Lagrangian'
+# c_d = semi_lagrangian.Linear2D(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c)
+#
+# A = np.copy(M)/dt
+# concentration_RHS = sps.lil_matrix.dot(A,c_d)
+# 
+# concentration_RHS = np.multiply(concentration_RHS,condition_concentration.bc_2)
+# concentration_RHS = concentration_RHS + condition_concentration.bc_dirichlet
+#
+# c = scipy.sparse.linalg.cg(condition_concentration.LHS,concentration_RHS,c, maxiter=1.0e+05, tol=1.0e-05)
+# c = c[0].reshape((len(c[0]),1))
  # --------------------------------------------------------------------------------
 
 end_time = time()
 solution_time = end_time - start_time
 
-relatory.export(directory_name, sys.argv[0], scheme, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time)
+relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
