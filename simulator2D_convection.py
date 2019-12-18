@@ -17,9 +17,8 @@ import search_file
 import import_msh
 import assembly
 import bc_apply
-import semi_lagrangian
-import export_vtk
 import solver
+import export_vtk
 import relatory
 
 
@@ -59,18 +58,10 @@ print ' (3) - Cubic Element'
 polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
 print ""
 
-if polynomial_option == 1:
- print ' 3 Gauss Points'
- print ' 4 Gauss Points'
- print ' 5 Gauss Points'
- gausspoints_option = int(raw_input(" Enter Gauss Points Number option above: "))
- print ""
-
-else:
- print ""
- print "Error: Polynomial Order not found"
- print ""
- sys.exit()
+print ' 4 Gauss Points'
+print ' 5 Gauss Points'
+gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
+print ""
 
 
 nt = int(raw_input(" Enter number of time interations (nt): "))
@@ -78,7 +69,8 @@ directory_name = raw_input(" Enter folder name to save simulations: ")
 print ""
 
 print ' (1) - Taylor Galerkin'
-print ' (2) - Semi Lagrangian'
+print ' (2) - Semi Lagrangian Linear'
+print ' (3) - Semi Lagrangian Quadratic'
 scheme_option = int(raw_input(" Enter simulation scheme option above: "))
 print ""
 print ""
@@ -95,9 +87,15 @@ directory = search_file.Find(mesh_name)
 if directory == 'File not found':
  sys.exit()
 
-mesh = import_msh.Linear2D(directory,mesh_name,equation_number)
-mesh.coord()
-mesh.ien()
+if polynomial_option == 1:
+ mesh = import_msh.Linear2D(directory,mesh_name,equation_number)
+ mesh.coord()
+ mesh.ien()
+
+elif polynomial_option == 2:
+ mesh = import_msh.Quad2D(directory,mesh_name,equation_number)
+ mesh.coord()
+ mesh.ien()
 
 CFL = 0.5
 dt = float(CFL*mesh.length_min)
@@ -117,7 +115,7 @@ print ' ---------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order, gausspoints = assembly.Linear2D(mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y, gausspoints_option)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y, gausspoints)
 
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
 
@@ -137,7 +135,7 @@ print ' --------------------------------'
 start_time = time()
 
 # --------- Boundaries conditions --------------------
-condition_concentration = bc_apply.Convection(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
+condition_concentration = bc_apply.Convection2D(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
 condition_concentration.neumann_condition(mesh.neumann_edges[1])
 condition_concentration.dirichlet_condition(mesh.dirichlet_pts[1])
 condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
@@ -184,11 +182,12 @@ print ""
 print ' Saving simulation in %s' %directory_name
 print ""
 
-start_time = time()
 
 
 # Taylor Galerkin
 if scheme_option == 1:
+ 
+ start_time = time()
  for t in tqdm(range(0, nt)):
 
   # ------------------------ Export VTK File ---------------------------------------
@@ -205,8 +204,10 @@ if scheme_option == 1:
 
 
 
-# Semi Lagrangian
+# Semi Lagrangian Linear
 elif scheme_option == 2:
+ 
+ start_time = time()
  for t in tqdm(range(0, nt)):
   # ------------------------ Export VTK File ---------------------------------------
   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
@@ -217,6 +218,24 @@ elif scheme_option == 2:
   # -------------------------------- Solver ---------------------------------------
   scheme = solver.SemiImplicit_convection_diffusion2D(scheme_option)
   scheme.semi_lagrangian(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  c = scheme.c
+  # -------------------------------------------------------------------------------
+
+# Semi Lagrangian Quadratic
+elif scheme_option == 3:
+
+ start_time = time()
+ for t in tqdm(range(0, nt)):
+ 
+  # ------------------------ Export VTK File ---------------------------------------
+  save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
+  save.create_dir(directory_name)
+  save.saveVTK(directory_name + str(t))
+  # --------------------------------------------------------------------------------
+
+  # -------------------------------- Solver ---------------------------------------
+  scheme = solver.SemiImplicit_convection_diffusion2D(scheme_option)
+  scheme.semi_lagrangian_quad(mesh.npoints, mesh.nelem, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
   c = scheme.c
   # -------------------------------------------------------------------------------
 
