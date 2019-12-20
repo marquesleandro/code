@@ -58,8 +58,10 @@ print ' (3) - Cubic Element'
 polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
 print ""
 
+print ' 3 Gauss Points'
 print ' 4 Gauss Points'
 print ' 5 Gauss Points'
+print ' 7 Gauss Points'
 gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
 print ""
 
