@@ -210,7 +210,7 @@ elif scheme_option == 2:
 
   # -------------------------------- Solver ---------------------------------------
   scheme = solver.SemiImplicit_convection_diffusion1D(scheme_option)
-  scheme.semi_lagrangian(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  scheme.semi_lagrangian_linear(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
   c = scheme.c
   # -------------------------------------------------------------------------------
 
