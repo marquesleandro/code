@@ -60,8 +60,8 @@ print ""
 
 print ' 3 Gauss Points'
 print ' 4 Gauss Points'
-print ' 5 Gauss Points'
-print ' 7 Gauss Points'
+print ' 6 Gauss Points'
+print ' 12 Gauss Points'
 gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
 print ""
 
