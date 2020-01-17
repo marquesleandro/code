@@ -61,8 +61,9 @@ Sc = float(raw_input(" Enter Schmidt Number (Sc): "))
 print ""
 
 print ' (1) - Linear Element'
-print ' (2) - Quadratic Element'
-print ' (3) - Cubic Element'
+print ' (2) - Mini Element'
+print ' (3) - Quadratic Element'
+print ' (4) - Cubic Element'
 polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
 print ""
 
@@ -80,8 +81,9 @@ print ""
 
 print ' (1) - Taylor Galerkin'
 print ' (2) - Semi Lagrangian Linear'
-print ' (3) - Semi Lagrangian Quadratic'
-print ' (4) - Semi Lagrangian Cubic'
+print ' (3) - Semi Lagrangian Mini'
+print ' (4) - Semi Lagrangian Quadratic'
+print ' (5) - Semi Lagrangian Cubic'
 scheme_option = int(raw_input(" Enter simulation scheme option above: "))
 print ""
 print ""
@@ -104,11 +106,16 @@ if polynomial_option == 1:
  mesh.ien()
 
 elif polynomial_option == 2:
- mesh = import_msh.Quad2D(directory,mesh_name,equation_number)
+ mesh = import_msh.Mini2D(directory,mesh_name,equation_number)
  mesh.coord()
  mesh.ien()
 
 elif polynomial_option == 3:
+ mesh = import_msh.Quad2D(directory,mesh_name,equation_number)
+ mesh.coord()
+ mesh.ien()
+
+elif polynomial_option == 4:
  mesh = import_msh.Cubic2D(directory,mesh_name,equation_number)
  mesh.coord()
  mesh.ien()
@@ -248,8 +255,27 @@ if simulator_option == 4: #Convection
    c = scheme.c
    # -------------------------------------------------------------------------------
 
- # Semi Lagrangian Quadratic
+ # Semi Lagrangian Mini
  elif scheme_option == 3:
+
+  start_time = time()
+  for t in tqdm(range(0, nt)):
+ 
+   # ------------------------ Export VTK File ---------------------------------------
+   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
+   save.create_dir(directory_name)
+   save.saveVTK(directory_name + str(t))
+   # --------------------------------------------------------------------------------
+
+   # -------------------------------- Solver ---------------------------------------
+   scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
+   scheme.semi_lagrangian_mini(mesh.npoints, mesh.nelem, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, Re, Sc, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, condition_concentration.bc_2)
+   c = scheme.c
+   # -------------------------------------------------------------------------------
+
+
+ # Semi Lagrangian Quadratic
+ elif scheme_option == 4:
 
   start_time = time()
   for t in tqdm(range(0, nt)):
@@ -267,7 +293,7 @@ if simulator_option == 4: #Convection
    # -------------------------------------------------------------------------------
 
  # Semi Lagrangian Cubic
- elif scheme_option == 4:
+ elif scheme_option == 5:
 
   start_time = time()
   for t in tqdm(range(0, nt)):
