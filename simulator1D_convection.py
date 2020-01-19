@@ -41,8 +41,12 @@ print ' ------'
 print ' INPUT:'
 print ' ------'
 
+print ' (1) - Pure Convection'
+simulator_option = int(raw_input(" Enter simulator option above: "))
 print ""
-mesh_name = (raw_input(" Enter mesh name (.msh): ") + '.msh')
+
+print ""
+mesh_name = (raw_input(" Enter name (.msh): ") + '.msh')
 equation_number = int(raw_input(" Enter equation number: "))
 print ""
 
@@ -84,18 +88,11 @@ directory = search_file.Find(mesh_name)
 if directory == 'File not found':
  sys.exit()
 
-if polynomial_option == 1:
- mesh = import_msh.Linear1D(directory,mesh_name,equation_number)
- mesh.coord()
- mesh.ien()
+npoints, nelem, x, IEN, neumann_pts, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element1D(directory, mesh_name, equation_number, polynomial_option)
 
-elif polynomial_option == 2:
- mesh = import_msh.Quad1D(directory,mesh_name,equation_number)
- mesh.coord()
- mesh.ien()
 
 CFL = 0.5
-dt = float(CFL*mesh.length_min)
+dt = float(CFL*length_min)
 
 end_time = time()
 import_mesh_time = end_time - start_time
@@ -111,7 +108,7 @@ print ' ---------'
 
 start_time = time()
 
-K, M, G, polynomial_order = assembly.Element1D(polynomial_option, mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, gausspoints)
+K, M, G, polynomial_order = assembly.Element1D(polynomial_option, GL, npoints, nelem, IEN, x, gausspoints)
 
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
 
@@ -129,18 +126,9 @@ print ' --------------------------------'
 
 start_time = time()
 
-# --------- Boundaries conditions --------------------
-condition_concentration = bc_apply.Convection1D(mesh.nphysical,mesh.npoints,mesh.x)
-condition_concentration.neumann_condition(mesh.neumann_pts[1])
-condition_concentration.dirichlet_condition(mesh.dirichlet_pts[1])
-condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
-# ----------------------------------------------------
 
-# --------- Initial condition ------------------------
-condition_concentration.initial_condition()
-c = np.copy(condition_concentration.c)
-vx = np.copy(condition_concentration.vx)
-# ----------------------------------------------------
+bc_dirichlet, bc_neumann, bc_2, LHS, c, vx = bc_apply.Element1D(nphysical, npoints, x, neumann_pts[1], dirichlet_pts[1], neighbors_nodes, LHS_c0, simulator_option)
+
 
 end_time = time()
 bc_apply_time = end_time - start_time
@@ -156,9 +144,9 @@ print ' -----------------------------'
 
 print ' Mesh: %s' %mesh_name
 print ' Number of equation: %s' %equation_number
-print ' Number of nodes: %s' %mesh.npoints
-print ' Number of elements: %s' %mesh.nelem
-print ' Smallest edge length: %f' %mesh.length_min
+print ' Number of nodes: %s' %npoints
+print ' Number of elements: %s' %nelem
+print ' Smallest edge length: %f' %length_min
 print ' Time step: %s' %dt
 print ' Number of time iteration: %s' %nt
 print ' Reynolds number: %s' %Re
@@ -184,14 +172,14 @@ if scheme_option == 1:
  for t in tqdm(range(0, nt)):
  
   # ------------------------ Export VTK File --------------------------------------
-  save = export_vtk.Linear1D(mesh.x,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vx)
+  save = export_vtk.Linear1D(x,IEN,npoints,nelem,c,c,c,vx,vx)
   save.create_dir(directory_name)
   save.saveVTK(directory_name + str(t))
   # -------------------------------------------------------------------------------
  
   # -------------------------------- Solver ---------------------------------------
-  scheme = solver.SemiImplicit_convection_diffusion1D(scheme_option)
-  scheme.taylor_galerkin(c, vx, dt, M, K, G, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  scheme = solver.SemiImplicit_concentration_equation1D(scheme_option)
+  scheme.taylor_galerkin(c, vx, dt, M, K, G, LHS, bc_dirichlet, bc_2)
   c = scheme.c
   # -------------------------------------------------------------------------------
 
@@ -203,14 +191,14 @@ elif scheme_option == 2:
  for t in tqdm(range(0, nt)):
  
   # ------------------------ Export VTK File --------------------------------------
-  save = export_vtk.Linear1D(mesh.x,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vx)
+  save = export_vtk.Linear1D(x,IEN,npoints,nelem,c,c,c,vx,vx)
   save.create_dir(directory_name)
   save.saveVTK(directory_name + str(t))
   # -------------------------------------------------------------------------------
 
   # -------------------------------- Solver ---------------------------------------
-  scheme = solver.SemiImplicit_convection_diffusion1D(scheme_option)
-  scheme.semi_lagrangian_linear(mesh.npoints, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  scheme = solver.SemiImplicit_concentration_equation1D(scheme_option)
+  scheme.semi_lagrangian_linear(npoints, neighbors_elements, IEN, x, vx, dt, c, M, LHS, bc_dirichlet, bc_2)
   c = scheme.c
   # -------------------------------------------------------------------------------
 
@@ -221,14 +209,14 @@ elif scheme_option == 3:
  for t in tqdm(range(0, nt)):
  
   # ------------------------ Export VTK File --------------------------------------
-  save = export_vtk.Linear1D(mesh.x,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vx)
+  save = export_vtk.Linear1D(x,IEN,npoints,nelem,c,c,c,vx,vx)
   save.create_dir(directory_name)
   save.saveVTK(directory_name + str(t))
   # -------------------------------------------------------------------------------
  
   # -------------------------------- Solver ---------------------------------------
-  scheme = solver.SemiImplicit_convection_diffusion1D(scheme_option)
-  scheme.semi_lagrangian_quad(mesh.npoints, mesh.nelem, mesh.neighbors_elements, mesh.IEN, mesh.x, vx, dt, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_2)
+  scheme = solver.SemiImplicit_concentration_equation1D(scheme_option)
+  scheme.semi_lagrangian_quad(npoints, nelem, neighbors_elements, IEN, x, vx, dt, c, M, LHS, bc_dirichlet, bc_2)
   c = scheme.c
   # -------------------------------------------------------------------------------
 
@@ -237,4 +225,4 @@ elif scheme_option == 3:
 end_time = time()
 solution_time = end_time - start_time
 
-relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
+relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, npoints, nelem, length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)

@@ -52,7 +52,7 @@ simulator_option = int(raw_input(" Enter simulator option above: "))
 print ""
 
 
-mesh_name = (raw_input(" Enter mesh name (.msh): ") + '.msh')
+mesh_name = (raw_input(" Enter name (.msh): ") + '.msh')
 equation_number = int(raw_input(" Enter equation number: "))
 print ""
 
@@ -74,18 +74,14 @@ print ' 12 Gauss Points'
 gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
 print ""
 
+print ' (1) - Taylor Galerkin Scheme'
+print ' (2) - Semi Lagrangian Scheme'
+scheme_option = int(raw_input(" Enter simulation scheme option above: "))
+print ""
+print ""
 
 nt = int(raw_input(" Enter number of time interations (nt): "))
 directory_name = raw_input(" Enter folder name to save simulations: ")
-print ""
-
-print ' (1) - Taylor Galerkin'
-print ' (2) - Semi Lagrangian Linear'
-print ' (3) - Semi Lagrangian Mini'
-print ' (4) - Semi Lagrangian Quadratic'
-print ' (5) - Semi Lagrangian Cubic'
-scheme_option = int(raw_input(" Enter simulation scheme option above: "))
-print ""
 print ""
 
 
@@ -100,30 +96,12 @@ directory = search_file.Find(mesh_name)
 if directory == 'File not found':
  sys.exit()
 
-if polynomial_option == 1:
- mesh = import_msh.Linear2D(directory,mesh_name,equation_number)
- mesh.coord()
- mesh.ien()
 
-elif polynomial_option == 2:
- mesh = import_msh.Mini2D(directory,mesh_name,equation_number)
- mesh.coord()
- mesh.ien()
-
-elif polynomial_option == 3:
- mesh = import_msh.Quad2D(directory,mesh_name,equation_number)
- mesh.coord()
- mesh.ien()
-
-elif polynomial_option == 4:
- mesh = import_msh.Cubic2D(directory,mesh_name,equation_number)
- mesh.coord()
- mesh.ien()
-
+npoints, nelem, x, y, IEN, neumann_edges, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element2D(directory, mesh_name, equation_number, polynomial_option)
 
 
 CFL = 0.5
-dt = float(CFL*mesh.length_min)
+dt = float(CFL*length_min)
 
 end_time = time()
 import_mesh_time = end_time - start_time
@@ -140,9 +118,10 @@ print ' ---------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, mesh.GL, mesh.npoints, mesh.nelem, mesh.IEN, mesh.x, mesh.y, gausspoints)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, GL, npoints, nelem, IEN, x, y, gausspoints)
 
 LHS_c0 = (sps.lil_matrix.copy(M)/dt)
+#LHS_c0 = (sps.lil_matrix.copy(M)/dt) + (1.0/(Re*Sc))*sps.lil_matrix.copy(K))
 
 end_time = time()
 assembly_time = end_time - start_time
@@ -159,26 +138,8 @@ print ' --------------------------------'
 
 start_time = time()
 
-if simulator_option == 4:
- # --------- Boundaries conditions --------------------
- condition_concentration = bc_apply.Convection2D(mesh.nphysical,mesh.npoints,mesh.x,mesh.y)
- condition_concentration.neumann_condition(mesh.neumann_edges[1])
- condition_concentration.dirichlet_condition(mesh.dirichlet_pts[1])
- condition_concentration.gaussian_elimination(LHS_c0,mesh.neighbors_nodes)
- # ----------------------------------------------------
 
- # --------- Initial condition ------------------------
- condition_concentration.initial_condition()
- c = np.copy(condition_concentration.c)
- vx = np.copy(condition_concentration.vx)
- vy = np.copy(condition_concentration.vy)
- # ----------------------------------------------------
-
-else:
- print ""
- print " Error: BC Apply not found"
- print ""
- sys.exit()
+bc_dirichlet, bc_neumann, bc_2, LHS, c, vx, vy = bc_apply.Element2D(nphysical, npoints, x, y, neumann_edges[1], dirichlet_pts[1], neighbors_nodes, LHS_c0, simulator_option)
 
 
 end_time = time()
@@ -196,9 +157,9 @@ print ' -----------------------------'
 
 print ' Mesh: %s' %mesh_name
 print ' Number of equation: %s' %equation_number
-print ' Number of nodes: %s' %mesh.npoints
-print ' Number of elements: %s' %mesh.nelem
-print ' Smallest edge length: %f' %mesh.length_min
+print ' Number of nodes: %s' %npoints
+print ' Number of elements: %s' %nelem
+print ' Smallest edge length: %f' %length_min
 print ' Time step: %s' %dt
 print ' Number of time iteration: %s' %nt
 print ' Reynolds number: %s' %Re
@@ -219,96 +180,91 @@ print ""
 
 if simulator_option == 4: #Convection
 
- # Taylor Galerkin
+ # Taylor Galerkin Scheme
  if scheme_option == 1:
- 
-  start_time = time()
-  for t in tqdm(range(0, nt)):
 
-   # ------------------------ Export VTK File ---------------------------------------
-   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
-   save.create_dir(directory_name)
-   save.saveVTK(directory_name + str(t))
-   # --------------------------------------------------------------------------------
+   start_time = time()
+   for t in tqdm(range(0, nt)):
 
-   # -------------------------------- Solver ---------------------------------------
-   scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-   scheme.taylor_galerkin(c, vx, vy, dt, Re, Sc, M, Kxx, Kyx, Kxy, Kyy, Gx, Gy, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, condition_concentration.bc_2)
-   c = scheme.c
-   # -------------------------------------------------------------------------------
+    # ------------------------ Export VTK File ---------------------------------------
+    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
+    save.create_dir(directory_name)
+    save.saveVTK(directory_name + str(t))
+    # --------------------------------------------------------------------------------
+
+    # -------------------------------- Solver ---------------------------------------
+    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
+    scheme.taylor_galerkin(c, vx, vy, dt, Re, Sc, M, Kxx, Kyx, Kxy, Kyy, Gx, Gy, LHS, bc_dirichlet, bc_neumann, bc_2)
+    c = scheme.c
+    # -------------------------------------------------------------------------------
 
 
- # Semi Lagrangian Linear
+ # Semi Lagrangian Scheme
  elif scheme_option == 2:
  
-  start_time = time()
-  for t in tqdm(range(0, nt)):
-   # ------------------------ Export VTK File ---------------------------------------
-   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
-   save.create_dir(directory_name)
-   save.saveVTK(directory_name + str(t))
-   # --------------------------------------------------------------------------------
+  if polynomial_option == 1: #Linear Element
+   start_time = time()
+   for t in tqdm(range(0, nt)):
+    # ------------------------ Export VTK File ---------------------------------------
+    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
+    save.create_dir(directory_name)
+    save.saveVTK(directory_name + str(t))
+    # --------------------------------------------------------------------------------
 
-   # -------------------------------- Solver ---------------------------------------
-   scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-   scheme.semi_lagrangian_linear(mesh.npoints, mesh.neighbors_nodes, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, Re, Sc, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, condition_concentration.bc_2)
-   c = scheme.c
-   # -------------------------------------------------------------------------------
+    # -------------------------------- Solver ---------------------------------------
+    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
+    scheme.semi_lagrangian_linear(npoints, neighbors_nodes, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
+    c = scheme.c
+    # -------------------------------------------------------------------------------
 
- # Semi Lagrangian Mini
- elif scheme_option == 3:
-
-  start_time = time()
-  for t in tqdm(range(0, nt)):
+  elif polynomial_option == 2: #Mini Element
+   start_time = time()
+   for t in tqdm(range(0, nt)):
  
-   # ------------------------ Export VTK File ---------------------------------------
-   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
-   save.create_dir(directory_name)
-   save.saveVTK(directory_name + str(t))
-   # --------------------------------------------------------------------------------
+    # ------------------------ Export VTK File ---------------------------------------
+    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
+    save.create_dir(directory_name)
+    save.saveVTK(directory_name + str(t))
+    # --------------------------------------------------------------------------------
 
-   # -------------------------------- Solver ---------------------------------------
-   scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-   scheme.semi_lagrangian_mini(mesh.npoints, mesh.nelem, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, Re, Sc, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, condition_concentration.bc_2)
-   c = scheme.c
-   # -------------------------------------------------------------------------------
+    # -------------------------------- Solver ---------------------------------------
+    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
+    scheme.semi_lagrangian_mini(npoints, nelem, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
+    c = scheme.c
+    # -------------------------------------------------------------------------------
 
 
- # Semi Lagrangian Quadratic
- elif scheme_option == 4:
-
-  start_time = time()
-  for t in tqdm(range(0, nt)):
+  elif polynomial_option == 3: #Quadratic Element
+   start_time = time()
+   for t in tqdm(range(0, nt)):
  
-   # ------------------------ Export VTK File ---------------------------------------
-   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
-   save.create_dir(directory_name)
-   save.saveVTK(directory_name + str(t))
-   # --------------------------------------------------------------------------------
-
-   # -------------------------------- Solver ---------------------------------------
-   scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-   scheme.semi_lagrangian_quad(mesh.npoints, mesh.nelem, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, Re, Sc, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, condition_concentration.bc_2)
-   c = scheme.c
-   # -------------------------------------------------------------------------------
-
- # Semi Lagrangian Cubic
- elif scheme_option == 5:
-
-  start_time = time()
-  for t in tqdm(range(0, nt)):
+    # ------------------------ Export VTK File ---------------------------------------
+    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
+    save.create_dir(directory_name)
+    save.saveVTK(directory_name + str(t))
+    # --------------------------------------------------------------------------------
  
-   # ------------------------ Export VTK File ---------------------------------------
-   save = export_vtk.Linear2D(mesh.x,mesh.y,mesh.IEN,mesh.npoints,mesh.nelem,c,c,c,vx,vy)
-   save.create_dir(directory_name)
-   save.saveVTK(directory_name + str(t))
-   # --------------------------------------------------------------------------------
+    # -------------------------------- Solver ---------------------------------------
+    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
+    scheme.semi_lagrangian_quad(npoints, nelem, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
+    c = scheme.c
+    # -------------------------------------------------------------------------------
 
-   # -------------------------------- Solver ---------------------------------------
-   scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-   scheme.semi_lagrangian_cubic(mesh.npoints, mesh.nelem, mesh.neighbors_elements, mesh.IEN, mesh.x, mesh.y, vx, vy, dt, Re, Sc, c, M, condition_concentration.LHS, condition_concentration.bc_dirichlet, condition_concentration.bc_neumann, condition_concentration.bc_2)
-   c = scheme.c
-   # -------------------------------------------------------------------------------
+  elif polynomial_option == 4: #Cubic Element
+   start_time = time()
+   for t in tqdm(range(0, nt)):
+ 
+    # ------------------------ Export VTK File ---------------------------------------
+    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
+    save.create_dir(directory_name)
+    save.saveVTK(directory_name + str(t))
+    # --------------------------------------------------------------------------------
+
+    # -------------------------------- Solver ---------------------------------------
+    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
+    scheme.semi_lagrangian_cubic(npoints, nelem, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
+    c = scheme.c
+    # -------------------------------------------------------------------------------
 
 
  else:
@@ -337,5 +293,5 @@ print ' End simulation. Relatory saved in %s' %directory_name
 print ""
 
 # -------------------------------- Export Relatory ---------------------------------------
-relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, mesh.npoints, mesh.nelem, mesh.length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
+relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, npoints, nelem, length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
 
