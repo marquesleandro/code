@@ -17,8 +17,7 @@ import search_file
 import import_msh
 import assembly
 import bc_apply
-import solver
-import export_vtk
+import simulator_solver
 import relatory
 
 
@@ -44,14 +43,31 @@ print ' INPUT:'
 print ' ------'
 print ""
 
-print ' (1) - Poiseuille'
-print ' (2) - Half Poiseuille'
-print ' (3) - Cavity'
-print ' (4) - Pure Convection'
+# ----------------------------------------------------------------------------
+print ' (1) - Simulator 1D'
+print ' (2) - Simulator 2D'
 simulator_option = int(raw_input(" Enter simulator option above: "))
 print ""
+# ----------------------------------------------------------------------------
 
 
+# ----------------------------------------------------------------------------
+if simulator_option == 1:
+ print ' (1) - Pure Convection'
+ simulator_problem = int(raw_input(" Enter simulator problem above: "))
+ print ""
+
+elif simulator_option == 2:
+ print ' (1) - Poiseuille'
+ print ' (2) - Half Poiseuille'
+ print ' (3) - Cavity'
+ print ' (4) - Pure Convection'
+ simulator_problem = int(raw_input(" Enter simulator problem above: "))
+ print ""
+# ----------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------
 mesh_name = (raw_input(" Enter name (.msh): ") + '.msh')
 equation_number = int(raw_input(" Enter equation number: "))
 print ""
@@ -59,30 +75,60 @@ print ""
 Re = float(raw_input(" Enter Reynolds Number (Re): "))
 Sc = float(raw_input(" Enter Schmidt Number (Sc): "))
 print ""
+# ----------------------------------------------------------------------------
 
-print ' (1) - Linear Element'
-print ' (2) - Mini Element'
-print ' (3) - Quadratic Element'
-print ' (4) - Cubic Element'
-polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
-print ""
 
-print ' 3 Gauss Points'
-print ' 4 Gauss Points'
-print ' 6 Gauss Points'
-print ' 12 Gauss Points'
-gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
-print ""
+# ----------------------------------------------------------------------------
+if simulator_option == 1:
+ print ' (1) - Linear Element'
+ print ' (2) - Quadratic Element'
+ polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
+ print ""
 
+elif simulator_option == 2:
+ print ' (1) - Linear Element'
+ print ' (2) - Mini Element'
+ print ' (3) - Quadratic Element'
+ print ' (4) - Cubic Element'
+ polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
+ print ""
+# ----------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------
+if simulator_option == 1:
+ print '  3 Gauss Points'
+ print '  4 Gauss Points'
+ print '  5 Gauss Points'
+ print ' 10 Gauss Points'
+ gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
+ print ""
+
+elif simulator_option == 2:
+ print ' 3 Gauss Points'
+ print ' 4 Gauss Points'
+ print ' 6 Gauss Points'
+ print ' 12 Gauss Points'
+ gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
+ print ""
+# ----------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------
 print ' (1) - Taylor Galerkin Scheme'
 print ' (2) - Semi Lagrangian Scheme'
 scheme_option = int(raw_input(" Enter simulation scheme option above: "))
 print ""
 print ""
+# ----------------------------------------------------------------------------
 
+
+# ----------------------------------------------------------------------------
 nt = int(raw_input(" Enter number of time interations (nt): "))
 directory_name = raw_input(" Enter folder name to save simulations: ")
 print ""
+# ----------------------------------------------------------------------------
+
 
 
 
@@ -96,12 +142,19 @@ directory = search_file.Find(mesh_name)
 if directory == 'File not found':
  sys.exit()
 
+if simulator_option == 1:
+ npoints, nelem, x, IEN, neumann_pts, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element1D(directory, mesh_name, equation_number, polynomial_option)
 
-npoints, nelem, x, y, IEN, neumann_edges, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element2D(directory, mesh_name, equation_number, polynomial_option)
+ CFL = 0.5
+ dt = float(CFL*length_min)
 
 
-CFL = 0.5
-dt = float(CFL*length_min)
+elif simulator_option == 2:
+ npoints, nelem, x, y, IEN, neumann_edges, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element2D(directory, mesh_name, equation_number, polynomial_option)
+
+ CFL = 0.5
+ #dt = float(CFL*length_min)
+ dt = 0.02
 
 end_time = time()
 import_mesh_time = end_time - start_time
@@ -118,10 +171,13 @@ print ' ---------'
 
 start_time = time()
 
-Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, GL, npoints, nelem, IEN, x, y, gausspoints)
+if simulator_option == 1:
+ K, M, G, polynomial_order = assembly.Element1D(polynomial_option, GL, npoints, nelem, IEN, x, gausspoints)
 
-LHS_c0 = (sps.lil_matrix.copy(M)/dt)
-#LHS_c0 = (sps.lil_matrix.copy(M)/dt) + (1.0/(Re*Sc))*sps.lil_matrix.copy(K))
+
+elif simulator_option == 2:
+ Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, GL, npoints, nelem, IEN, x, y, gausspoints)
+
 
 end_time = time()
 assembly_time = end_time - start_time
@@ -138,8 +194,11 @@ print ' --------------------------------'
 
 start_time = time()
 
+if simulator_option == 1:
+ bc_dirichlet, bc_neumann, bc_2, LHS, scalar, vx = bc_apply.Element1D(nphysical, npoints, x, dt, K, M, G, neumann_pts[1], dirichlet_pts[1], neighbors_nodes, simulator_option)
 
-bc_dirichlet, bc_neumann, bc_2, LHS, c, vx, vy = bc_apply.Element2D(nphysical, npoints, x, y, neumann_edges[1], dirichlet_pts[1], neighbors_nodes, LHS_c0, simulator_option)
+elif simulator_option == 2:
+ bc_dirichlet, bc_neumann, bc_2, LHS, scalar, vx, vy = bc_apply.Element2D(nphysical, npoints, x, y, dt, Kxx, Kyx, Kxy, Kyy, M, Gx, Gy, neumann_edges[1], dirichlet_pts[1], neighbors_nodes, simulator_problem)
 
 
 end_time = time()
@@ -178,100 +237,22 @@ print ""
 
 
 
-if simulator_option == 4: #Convection
+start_time = time()
 
- # Taylor Galerkin Scheme
- if scheme_option == 1:
-
-   start_time = time()
-   for t in tqdm(range(0, nt)):
-
-    # ------------------------ Export VTK File ---------------------------------------
-    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
-    save.create_dir(directory_name)
-    save.saveVTK(directory_name + str(t))
-    # --------------------------------------------------------------------------------
-
-    # -------------------------------- Solver ---------------------------------------
-    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-    scheme.taylor_galerkin(c, vx, vy, dt, Re, Sc, M, Kxx, Kyx, Kxy, Kyy, Gx, Gy, LHS, bc_dirichlet, bc_neumann, bc_2)
-    c = scheme.c
-    # -------------------------------------------------------------------------------
+if simulator_option == 1: #Simulator 1D
+ c, scheme_name = simulator_solver.Element1D(simulator_problem, scheme_option, polynomial_option, x, IEN, npoints, nelem, scalar, vx, dt, nt, Re, Sc, M, K, G, LHS, bc_dirichlet, bc_neumann, bc_2, neighbors_nodes, neighbors_elements, directory_name)
 
 
- # Semi Lagrangian Scheme
- elif scheme_option == 2:
- 
-  if polynomial_option == 1: #Linear Element
-   start_time = time()
-   for t in tqdm(range(0, nt)):
-    # ------------------------ Export VTK File ---------------------------------------
-    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
-    save.create_dir(directory_name)
-    save.saveVTK(directory_name + str(t))
-    # --------------------------------------------------------------------------------
-
-    # -------------------------------- Solver ---------------------------------------
-    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-    scheme.semi_lagrangian_linear(npoints, neighbors_nodes, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
-    c = scheme.c
-    # -------------------------------------------------------------------------------
-
-  elif polynomial_option == 2: #Mini Element
-   start_time = time()
-   for t in tqdm(range(0, nt)):
- 
-    # ------------------------ Export VTK File ---------------------------------------
-    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
-    save.create_dir(directory_name)
-    save.saveVTK(directory_name + str(t))
-    # --------------------------------------------------------------------------------
-
-    # -------------------------------- Solver ---------------------------------------
-    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-    scheme.semi_lagrangian_mini(npoints, nelem, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
-    c = scheme.c
-    # -------------------------------------------------------------------------------
+elif simulator_option == 2: #Simulator 2D
+ c, scheme_name = simulator_solver.Element2D(simulator_problem, scheme_option, polynomial_option, x, y, IEN, npoints, nelem, scalar, vx, vy, dt, nt, Re, Sc, M, Kxx, Kyx, Kxy, Kyy, Gx, Gy, LHS, bc_dirichlet, bc_neumann, bc_2, neighbors_nodes, neighbors_elements, directory_name)
 
 
-  elif polynomial_option == 3: #Quadratic Element
-   start_time = time()
-   for t in tqdm(range(0, nt)):
- 
-    # ------------------------ Export VTK File ---------------------------------------
-    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
-    save.create_dir(directory_name)
-    save.saveVTK(directory_name + str(t))
-    # --------------------------------------------------------------------------------
- 
-    # -------------------------------- Solver ---------------------------------------
-    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-    scheme.semi_lagrangian_quad(npoints, nelem, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
-    c = scheme.c
-    # -------------------------------------------------------------------------------
 
-  elif polynomial_option == 4: #Cubic Element
-   start_time = time()
-   for t in tqdm(range(0, nt)):
- 
-    # ------------------------ Export VTK File ---------------------------------------
-    save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,c,c,c,vx,vy)
-    save.create_dir(directory_name)
-    save.saveVTK(directory_name + str(t))
-    # --------------------------------------------------------------------------------
-
-    # -------------------------------- Solver ---------------------------------------
-    scheme = solver.SemiImplicit_concentration_equation2D(scheme_option)
-    scheme.semi_lagrangian_cubic(npoints, nelem, neighbors_elements, IEN, x, y, vx, vy, dt, Re, Sc, c, M, LHS, bc_dirichlet, bc_neumann, bc_2)
-    c = scheme.c
-    # -------------------------------------------------------------------------------
-
-
- else:
-  print ""
-  print " Error: Simulator Scheme not found"
-  print ""
-  sys.exit()
+else:
+ print ""
+ print " Error: Simulator Scheme not found"
+ print ""
+ sys.exit()
 
 
 
@@ -293,5 +274,5 @@ print ' End simulation. Relatory saved in %s' %directory_name
 print ""
 
 # -------------------------------- Export Relatory ---------------------------------------
-relatory.export(directory_name, sys.argv[0], scheme.scheme_name, mesh_name, equation_number, npoints, nelem, length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
+relatory.export(directory_name, sys.argv[0], scheme_name, mesh_name, equation_number, npoints, nelem, length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
 
