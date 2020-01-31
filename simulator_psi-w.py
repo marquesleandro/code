@@ -52,7 +52,7 @@ print ""
 # ----------------------------------------------------------------------------
 if simulator_option == 1:
  print ' (1) - Pure Convection'
- simulator_problem = int(raw_input(" Enter simulator problem above: "))
+ benchmark_problem = int(raw_input(" Enter benchmark problem above: "))
  print ""
 
 elif simulator_option == 2:
@@ -60,7 +60,7 @@ elif simulator_option == 2:
  print ' (2) - Half Poiseuille'
  print ' (3) - Cavity'
  print ' (4) - Pure Convection'
- simulator_problem = int(raw_input(" Enter simulator problem above: "))
+ benchmark_problem = int(raw_input(" Enter benchmark problem above: "))
  print ""
 # ----------------------------------------------------------------------------
 
@@ -194,7 +194,7 @@ start_time = time()
 # ------------------------ Boundaries Conditions ----------------------------------
 # Applying vx condition
 xvelocity_LHS0 = sps.lil_matrix.copy(M)
-condition_xvelocity = benchmark_problems.Poiseuille(nphysical,npoints,x,y)
+condition_xvelocity = benchmark_problems.Half_Poiseuille(nphysical,npoints,x,y)
 condition_xvelocity.neumann_condition(neumann_edges[1])
 condition_xvelocity.dirichlet_condition(dirichlet_pts[1])
 condition_xvelocity.gaussian_elimination(xvelocity_LHS0,neighbors_nodes)
@@ -202,14 +202,14 @@ vorticity_ibc = condition_xvelocity.ibc
 
 # Applying vy condition
 yvelocity_LHS0 = sps.lil_matrix.copy(M)
-condition_yvelocity = benchmark_problems.Poiseuille(nphysical,npoints,x,y)
+condition_yvelocity = benchmark_problems.Half_Poiseuille(nphysical,npoints,x,y)
 condition_yvelocity.neumann_condition(neumann_edges[2])
 condition_yvelocity.dirichlet_condition(dirichlet_pts[2])
 condition_yvelocity.gaussian_elimination(yvelocity_LHS0,neighbors_nodes)
 
 # Applying psi condition
 streamfunction_LHS0 = sps.lil_matrix.copy(K)
-condition_streamfunction = benchmark_problems.Poiseuille(nphysical,npoints,x,y)
+condition_streamfunction = benchmark_problems.Half_Poiseuille(nphysical,npoints,x,y)
 condition_streamfunction.streamfunction_condition(dirichlet_pts[3],streamfunction_LHS0,neighbors_nodes)
 # ---------------------------------------------------------------------------------
 
@@ -393,7 +393,7 @@ print ' End simulation. Relatory saved in %s' %directory_name
 print ""
 
 # -------------------------------- Export Relatory ---------------------------------------
-relatory.export(directory_name, sys.argv[0], scheme_name, mesh_name, equation_number, npoints, nelem, length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
+relatory.export(directory_name, sys.argv[0], benchmark_problem, scheme_name, mesh_name, equation_number, npoints, nelem, length_min, dt, nt, Re, Sc, import_mesh_time, assembly_time, bc_apply_time, solution_time, polynomial_order, gausspoints)
 
 
 
