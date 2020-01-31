@@ -150,8 +150,8 @@ elif simulator_option == 2:
  npoints, nelem, x, y, IEN, neumann_edges, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element2D(directory, mesh_name, equation_number, polynomial_option)
 
  CFL = 0.5
- dt = float(CFL*length_min)
- #dt = 0.005
+ #dt = float(CFL*length_min)
+ dt = 0.005
 
 end_time = time()
 import_mesh_time = end_time - start_time
@@ -331,9 +331,23 @@ for t in tqdm(range(0, nt)):
 # w = w[0].reshape((len(w[0]),1))
 
 
- # Semi-Lagrangian Scheme
- scheme_name = 'Semi Lagrangian'
- w_d = semi_lagrangian.Linear2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
+ # Linear Semi-Lagrangian Scheme
+# scheme_name = 'Semi Lagrangian Linear'
+# w_d = semi_lagrangian.Linear2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
+# A = np.copy(M)/dt
+# vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+#
+# vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+# vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+# vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+# 
+# w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+# w = w[0].reshape((len(w[0]),1))
+
+
+ # Quad Semi-Lagrangian Scheme
+ scheme_name = 'Semi Lagrangian Quad'
+ w_d = semi_lagrangian.Quad2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
  A = np.copy(M)/dt
  vorticity_RHS = sps.lil_matrix.dot(A,w_d)
 
