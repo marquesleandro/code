@@ -41,27 +41,13 @@ print ' INPUT:'
 print ' ------'
 print ""
 
+
 # ----------------------------------------------------------------------------
-print ' (1) - Simulator 1D'
-print ' (2) - Simulator 2D'
-simulator_option = int(raw_input(" Enter simulator option above: "))
+print ' (1) - Poiseuille'
+print ' (2) - Half Poiseuille'
+print ' (3) - Cavity'
+benchmark_problem = int(raw_input(" Enter benchmark problem above: "))
 print ""
-# ----------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------
-if simulator_option == 1:
- print ' (1) - Pure Convection'
- benchmark_problem = int(raw_input(" Enter benchmark problem above: "))
- print ""
-
-elif simulator_option == 2:
- print ' (1) - Poiseuille'
- print ' (2) - Half Poiseuille'
- print ' (3) - Cavity'
- print ' (4) - Pure Convection'
- benchmark_problem = int(raw_input(" Enter benchmark problem above: "))
- print ""
 # ----------------------------------------------------------------------------
 
 
@@ -77,38 +63,22 @@ print ""
 
 
 # ----------------------------------------------------------------------------
-if simulator_option == 1:
- print ' (1) - Linear Element'
- print ' (2) - Quadratic Element'
- polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
- print ""
-
-elif simulator_option == 2:
- print ' (1) - Linear Element'
- print ' (2) - Mini Element'
- print ' (3) - Quadratic Element'
- print ' (4) - Cubic Element'
- polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
- print ""
+print ' (1) - Linear Element'
+print ' (2) - Mini Element'
+print ' (3) - Quadratic Element'
+print ' (4) - Cubic Element'
+polynomial_option = int(raw_input(" Enter polynomial degree option above: "))
+print ""
 # ----------------------------------------------------------------------------
 
 
 # ----------------------------------------------------------------------------
-if simulator_option == 1:
- print '  3 Gauss Points'
- print '  4 Gauss Points'
- print '  5 Gauss Points'
- print ' 10 Gauss Points'
- gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
- print ""
-
-elif simulator_option == 2:
- print ' 3 Gauss Points'
- print ' 4 Gauss Points'
- print ' 6 Gauss Points'
- print ' 12 Gauss Points'
- gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
- print ""
+print ' 3 Gauss Points'
+print ' 4 Gauss Points'
+print ' 6 Gauss Points'
+print ' 12 Gauss Points'
+gausspoints = int(raw_input(" Enter Gauss Points Number option above: "))
+print ""
 # ----------------------------------------------------------------------------
 
 
@@ -139,19 +109,11 @@ directory = search_file.Find(mesh_name)
 if directory == 'File not found':
  sys.exit()
 
-if simulator_option == 1:
- npoints, nelem, x, IEN, neumann_pts, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element1D(directory, mesh_name, equation_number, polynomial_option)
+npoints, nelem, x, y, IEN, neumann_edges, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element2D(directory, mesh_name, equation_number, polynomial_option)
 
- CFL = 0.5
- dt = float(CFL*length_min)
-
-
-elif simulator_option == 2:
- npoints, nelem, x, y, IEN, neumann_edges, dirichlet_pts, neighbors_nodes, neighbors_elements, far_neighbors_nodes, far_neighbors_elements, length_min, GL, nphysical = import_msh.Element2D(directory, mesh_name, equation_number, polynomial_option)
-
- CFL = 0.5
- #dt = float(CFL*length_min)
- dt = 0.005
+CFL = 0.5
+#dt = float(CFL*length_min)
+dt = 0.005
 
 end_time = time()
 import_mesh_time = end_time - start_time
@@ -168,12 +130,7 @@ print ' ---------'
 
 start_time = time()
 
-if simulator_option == 1:
- K, M, G, polynomial_order = assembly.Element1D(polynomial_option, GL, npoints, nelem, IEN, x, gausspoints)
-
-
-elif simulator_option == 2:
- Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, GL, npoints, nelem, IEN, x, y, gausspoints)
+Kxx, Kxy, Kyx, Kyy, K, M, MLump, Gx, Gy, polynomial_order = assembly.Element2D(polynomial_option, GL, npoints, nelem, IEN, x, y, gausspoints)
 
 
 end_time = time()
@@ -194,7 +151,7 @@ start_time = time()
 # ------------------------ Boundaries Conditions ----------------------------------
 # Applying vx condition
 xvelocity_LHS0 = sps.lil_matrix.copy(M)
-condition_xvelocity = benchmark_problems.Half_Poiseuille(nphysical,npoints,x,y)
+condition_xvelocity = benchmark_problems.Poiseuille(nphysical,npoints,x,y)
 condition_xvelocity.neumann_condition(neumann_edges[1])
 condition_xvelocity.dirichlet_condition(dirichlet_pts[1])
 condition_xvelocity.gaussian_elimination(xvelocity_LHS0,neighbors_nodes)
@@ -202,14 +159,14 @@ vorticity_ibc = condition_xvelocity.ibc
 
 # Applying vy condition
 yvelocity_LHS0 = sps.lil_matrix.copy(M)
-condition_yvelocity = benchmark_problems.Half_Poiseuille(nphysical,npoints,x,y)
+condition_yvelocity = benchmark_problems.Poiseuille(nphysical,npoints,x,y)
 condition_yvelocity.neumann_condition(neumann_edges[2])
 condition_yvelocity.dirichlet_condition(dirichlet_pts[2])
 condition_yvelocity.gaussian_elimination(yvelocity_LHS0,neighbors_nodes)
 
 # Applying psi condition
 streamfunction_LHS0 = sps.lil_matrix.copy(K)
-condition_streamfunction = benchmark_problems.Half_Poiseuille(nphysical,npoints,x,y)
+condition_streamfunction = benchmark_problems.Poiseuille(nphysical,npoints,x,y)
 condition_streamfunction.streamfunction_condition(dirichlet_pts[3],streamfunction_LHS0,neighbors_nodes)
 # ---------------------------------------------------------------------------------
 
@@ -332,17 +289,32 @@ for t in tqdm(range(0, nt)):
 
 
  # Linear Semi-Lagrangian Scheme
-# scheme_name = 'Semi Lagrangian Linear'
-# w_d = semi_lagrangian.Linear2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
-# A = np.copy(M)/dt
-# vorticity_RHS = sps.lil_matrix.dot(A,w_d)
-#
-# vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
-# vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
-# vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
-# 
-# w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
-# w = w[0].reshape((len(w[0]),1))
+ #scheme_name = 'Semi Lagrangian Linear'
+ #w_d = semi_lagrangian.Linear2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
+ #A = np.copy(M)/dt
+ #vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+ #
+ #vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+ #vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+ #vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+ #
+ #w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+ #w = w[0].reshape((len(w[0]),1))
+  
+
+ # Mini Semi-Lagrangian Scheme
+ #scheme_name = 'Semi Lagrangian Mini'
+ #w_d = semi_lagrangian.Mini2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
+ #A = np.copy(M)/dt
+ #vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+ #
+ #vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+ #vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+ #vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+ #
+ #w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+ #w = w[0].reshape((len(w[0]),1))
+  
 
 
  # Quad Semi-Lagrangian Scheme

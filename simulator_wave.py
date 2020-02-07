@@ -18,6 +18,7 @@ import import_msh
 import assembly
 import benchmark_problems
 import simulator_solver
+import export_vtk
 import relatory
 
 
@@ -58,7 +59,7 @@ if simulator_option == 1:
  print ""
 
 elif simulator_option == 2:
- print ' (4) - Pure Convection'
+ print ' (4) - Wave 2D'
  simulator_problem = int(raw_input(" Enter simulator problem above: "))
  print ""
 # ----------------------------------------------------------------------------
@@ -206,8 +207,9 @@ if simulator_option == 1:
  vx = np.copy(condition_concentration.vx)
 
 elif simulator_option == 2:
- condition_concentration_LHS0 = sps.lil_matrix.copy(M)/dt
- condition_concentration = benchmark_problems.Convection2D(nphysical,npoints,x,y)
+ c = 1.0
+ condition_concentration_LHS0 = (sps.lil_matrix.copy(M)/(dt**2)) + ((c**2)*sps.lil_matrix.copy(K))
+ condition_concentration = benchmark_problems.Wave2D(nphysical,npoints,x,y)
  condition_concentration.neumann_condition(neumann_edges[1])
  condition_concentration.dirichlet_condition(dirichlet_pts[1])
  condition_concentration.gaussian_elimination(condition_concentration_LHS0,neighbors_nodes)
@@ -217,7 +219,9 @@ elif simulator_option == 2:
  bc_dirichlet = condition_concentration.bc_dirichlet
  bc_neumann = condition_concentration.bc_neumann
  bc_2 = condition_concentration.bc_2
- scalar = np.copy(condition_concentration.c)
+ u2 = np.copy(condition_concentration.c)
+ u1 = np.copy(condition_concentration.c)
+ u = np.copy(condition_concentration.c)
  vx = np.copy(condition_concentration.vx)
  vy = np.copy(condition_concentration.vy)
 
@@ -262,22 +266,31 @@ print ""
 
 
 start_time = time()
-
-if simulator_option == 1: #Simulator 1D
- c, scheme_name = simulator_solver.Element1D(simulator_problem, scheme_option, polynomial_option, x, IEN, npoints, nelem, scalar, vx, dt, nt, Re, Sc, M, K, G, LHS, bc_dirichlet, bc_neumann, bc_2, neighbors_nodes, neighbors_elements, directory_name)
-
-
-elif simulator_option == 2: #Simulator 2D
- c, scheme_name = simulator_solver.Element2D(simulator_problem, scheme_option, polynomial_option, x, y, IEN, npoints, nelem, scalar, vx, vy, dt, nt, Re, Sc, M, Kxx, Kyx, Kxy, Kyy, Gx, Gy, LHS, bc_dirichlet, bc_neumann, bc_2, neighbors_nodes, neighbors_elements, directory_name)
-
+for t in tqdm(range(0, nt)):
+ # ------------------------ Export VTK File ---------------------------------------
+ save = export_vtk.Linear2D(x,y,IEN,npoints,nelem,u,u,u,vx,vy)
+ save.create_dir(directory_name)
+ save.saveVTK(directory_name + str(t))
+ # --------------------------------------------------------------------------------
 
 
-else:
- print ""
- print " Error: Simulator Scheme not found"
- print ""
- sys.exit()
+ #------------------------- Solver Wave Equation ----------------------------------
+ scheme_name = 'Wave Solver'
+ A = 2.0*sps.lil_matrix.copy(M)/(dt**2)
+ B = 1.0*sps.lil_matrix.copy(M)/(dt**2)
+ 
+ RHS = sps.lil_matrix.dot(A,u1) - sps.lil_matrix.dot(B,u2)
 
+ RHS = RHS + (1.0)*bc_neumann
+ RHS = np.multiply(RHS,bc_2)
+ RHS = RHS + bc_dirichlet
+
+ u = scipy.sparse.linalg.cg(LHS,RHS,u1, maxiter=1.0e+05, tol=1.0e-05)
+ u = u[0].reshape((len(u[0]),1))
+
+ u2 = u1
+ u1 = u
+ # --------------------------------------------------------------------------------
 
 
 
