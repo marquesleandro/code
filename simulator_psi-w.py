@@ -276,17 +276,17 @@ for t in tqdm(range(0, nt)):
 
  #---------- Step 3 - Solve the vorticity transport equation ----------------------
 # Taylor Galerkin Scheme
- scheme_name = 'Taylor Galerkin'
- A = np.copy(M)/dt
- vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
-       - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
-       - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w)) + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
-       - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w)) + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
- vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
- vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
- w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
- w = w[0].reshape((len(w[0]),1))
-
+ #scheme_name = 'Taylor Galerkin'
+ #A = np.copy(M)/dt
+ #vorticity_RHS = sps.lil_matrix.dot(A,w) - np.multiply(vx,sps.lil_matrix.dot(Gx,w))\
+ #      - np.multiply(vy,sps.lil_matrix.dot(Gy,w))\
+ #      - (dt/2.0)*np.multiply(vx,(np.multiply(vx,sps.lil_matrix.dot(Kxx,w)) + np.multiply(vy,sps.lil_matrix.dot(Kyx,w))))\
+ #      - (dt/2.0)*np.multiply(vy,(np.multiply(vx,sps.lil_matrix.dot(Kxy,w)) + np.multiply(vy,sps.lil_matrix.dot(Kyy,w))))
+ #vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+ #vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+ #w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+ #w = w[0].reshape((len(w[0]),1))
+  
 
  # Linear Semi-Lagrangian Scheme
  #scheme_name = 'Semi Lagrangian Linear'
@@ -318,19 +318,19 @@ for t in tqdm(range(0, nt)):
 
 
  # Quad Semi-Lagrangian Scheme
- #scheme_name = 'Semi Lagrangian Quad'
- #w_d = semi_lagrangian.Quad2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
- #A = np.copy(M)/dt
- #vorticity_RHS = sps.lil_matrix.dot(A,w_d)
- #
- #vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
- #vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
- #vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
- #
- #w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
- #w = w[0].reshape((len(w[0]),1))
- ##----------------------------------------------------------------------------------
-  
+ scheme_name = 'Semi Lagrangian Quad'
+ w_d = semi_lagrangian.Quad2D(npoints, neighbors_elements, IEN, x, y, vx, vy, dt, w)
+ A = np.copy(M)/dt
+ vorticity_RHS = sps.lil_matrix.dot(A,w_d)
+
+ vorticity_RHS = vorticity_RHS + (1.0/Re)*vorticity_bc_neumann
+ vorticity_RHS = np.multiply(vorticity_RHS,vorticity_bc_2)
+ vorticity_RHS = vorticity_RHS + vorticity_bc_dirichlet
+
+ w = scipy.sparse.linalg.cg(vorticity_LHS,vorticity_RHS,w, maxiter=1.0e+05, tol=1.0e-05)
+ w = w[0].reshape((len(w[0]),1))
+ #----------------------------------------------------------------------------------
+
 
 
  #---------- Step 4 - Solve the streamline equation --------------------------------
